@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shimmer Cafe Management</title>
+    <!-- CSS Libraries (CDN alternatives for immediate use without npm install) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading Shimmer Cafe...</p>
+    </div>
+
+    <div class="container">
+        <header class="animate__animated animate__fadeInDown">
+            <h1>Shimmer Cafe Management</h1>
+            <nav>
+                <ul>
+                    <li><a href="#" class="active" data-page="pos"><i class="fas fa-cash-register"></i> POS</a></li>
+                    <li><a href="#" data-page="inventory"><i class="fas fa-boxes"></i> Inventory</a></li>
+                    <li><a href="#" data-page="reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
+                    <li><a href="#" data-page="settings"><i class="fas fa-cog"></i> Settings</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main id="main-content" class="animate__animated animate__fadeIn">
+            <!-- Content will be loaded dynamically -->
+        </main>
+    </div>
+
+    <!-- Templates -->
+    <template id="pos-template">
+        <div class="pos-container">
+            <div class="menu-section card-effect">
+                <h2><i class="fas fa-utensils"></i> Menu</h2>
+                <div class="category-tabs">
+                    <button class="category-tab active" data-category="coffee"><i class="fas fa-coffee"></i> Coffee</button>
+                    <button class="category-tab" data-category="tea"><i class="fas fa-mug-hot"></i> Tea</button>
+                    <button class="category-tab" data-category="pastries"><i class="fas fa-cookie"></i> Pastries</button>
+                    <button class="category-tab" data-category="snacks"><i class="fas fa-hamburger"></i> Snacks</button>
+                </div>
+                <div class="menu-items"></div>
+            </div>
+            <div class="order-section card-effect">
+                <h2><i class="fas fa-shopping-cart"></i> Current Order</h2>
+                <div class="order-items"></div>
+                <div class="order-summary">
+                    <div class="subtotal">Subtotal: $<span id="subtotal">0.00</span></div>
+                    <div class="tax">Tax: $<span id="tax">0.00</span></div>
+                    <div class="total">Total: $<span id="total">0.00</span></div>
+                </div>
+                <div class="order-actions">
+                    <button id="clear-order" class="btn-danger ripple"><i class="fas fa-trash"></i> Clear</button>
+                    <button id="process-payment" class="btn-primary ripple"><i class="fas fa-credit-card"></i> Process Payment</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="inventory-template">
+        <div class="inventory-container card-effect">
+            <h2><i class="fas fa-boxes"></i> Inventory Management</h2>
+            <div class="inventory-actions">
+                <button id="add-item" class="btn-primary ripple"><i class="fas fa-plus"></i> Add New Item</button>
+                <button id="update-stock" class="btn-secondary ripple"><i class="fas fa-sync"></i> Update Stock</button>
+            </div>
+            <div class="table-responsive">
+                <table class="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Reorder Level</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-list">
+                        <!-- Inventory items will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="reports-template">
+        <div class="reports-container card-effect">
+            <h2><i class="fas fa-chart-bar"></i> Reports</h2>
+            <div class="report-options">
+                <button data-report="daily" class="btn-primary ripple"><i class="fas fa-calendar-day"></i> Daily Sales</button>
+                <button data-report="weekly" class="btn-primary ripple"><i class="fas fa-calendar-week"></i> Weekly Sales</button>
+                <button data-report="monthly" class="btn-primary ripple"><i class="fas fa-calendar-alt"></i> Monthly Sales</button>
+                <button data-report="popular" class="btn-primary ripple"><i class="fas fa-star"></i> Popular Items</button>
+            </div>
+            <div class="report-display">
+                <div id="report-chart" class="chart-container"></div>
+                <div id="report-details"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="settings-template">
+        <div class="settings-container card-effect">
+            <h2><i class="fas fa-cog"></i> System Settings</h2>
+            <form id="settings-form">
+                <div class="setting-group">
+                    <h3><i class="fas fa-store"></i> Cafe Information</h3>
+                    <div class="form-control">
+                        <label for="cafe-name">Cafe Name</label>
+                        <input type="text" id="cafe-name" value="Shimmer Cafe" class="input-effect">
+                    </div>
+                    <div class="form-control">
+                        <label for="tax-rate">Tax Rate (%)</label>
+                        <input type="number" id="tax-rate" value="10" class="input-effect">
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <h3><i class="fas fa-database"></i> Backup &amp; Restore</h3>
+                    <button type="button" id="backup-data" class="btn-secondary ripple"><i class="fas fa-download"></i> Backup Data</button>
+                    <button type="button" id="restore-data" class="btn-secondary ripple"><i class="fas fa-upload"></i> Restore Data</button>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary ripple"><i class="fas fa-save"></i> Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </template>
+
+    <!-- Modal Templates -->
+    <template id="payment-modal-template">
+        <div class="modal-content animate__animated animate__fadeInDown">
+            <h2><i class="fas fa-credit-card"></i> Process Payment</h2>
+            <div class="payment-total">Total: $<span id="payment-amount">0.00</span></div>
+            <div class="payment-methods">
+                <button data-method="cash" class="btn-payment ripple"><i class="fas fa-money-bill-wave"></i> Cash</button>
+                <button data-method="card" class="btn-payment ripple"><i class="fas fa-credit-card"></i> Card</button>
+            </div>
+            <div id="cash-input" class="payment-input hidden">
+                <label for="cash-amount">Cash Received:</label>
+                <input type="number" id="cash-amount" step="0.01" class="input-effect">
+                <div class="change-amount">Change: $<span id="change">0.00</span></div>
+            </div>
+            <div class="modal-actions">
+                <button id="cancel-payment" class="btn-danger ripple"><i class="fas fa-times"></i> Cancel</button>
+                <button id="complete-payment" class="btn-success ripple"><i class="fas fa-check"></i> Complete</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- JavaScript Libraries (CDN alternatives for immediate use without npm install) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/db.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+        // Loading animation
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const overlay = document.getElementById('loading-overlay');
+                overlay.classList.add('fade-out');
+                setTimeout(function() {
+                    overlay.style.display = 'none';
+                }, 500);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
