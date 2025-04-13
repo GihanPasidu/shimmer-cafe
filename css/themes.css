@@ -1,24 +1,36 @@
-/* Shimmer Cafe Theme System */
+/**
+ * Shimmer Cafe - Theme System
+ * Provides multiple color themes and common UI component styling
+ */
 
 :root {
     /* Default Theme - Purple */
     --primary-color: #6a1b9a;
+    --primary-dark: #38006b;
+    --primary-light: #9c4dcc;
     --secondary-color: #9c27b0;
     --accent-color: #d500f9;
     --light-color: #f3e5f5;
     --dark-color: #4a148c;
     --text-color: #333;
+    --text-light: #757575;
     --success-color: #4caf50;
     --danger-color: #f44336;
     --warning-color: #ff9800;
     --info-color: #2196f3;
     --background-color: #f9f9f9;
     --card-bg-color: #ffffff;
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition-speed: 0.3s;
+    --border-radius: 8px;
+    --font-family: 'Segoe UI', Roboto, Arial, sans-serif;
 }
 
 /* Blue Theme */
 [data-theme="blue"] {
     --primary-color: #1a237e;
+    --primary-dark: #000051;
+    --primary-light: #534bae;
     --secondary-color: #3f51b5;
     --accent-color: #536dfe;
     --light-color: #e8eaf6;
@@ -29,6 +41,8 @@
 /* Teal Theme */
 [data-theme="teal"] {
     --primary-color: #004d40;
+    --primary-dark: #00251a;
+    --primary-light: #39796b;
     --secondary-color: #00796b;
     --accent-color: #00bfa5;
     --light-color: #e0f2f1;
@@ -39,53 +53,141 @@
 /* Dark Theme */
 [data-theme="dark"] {
     --primary-color: #512da8;
+    --primary-dark: #140078;
+    --primary-light: #8559da;
     --secondary-color: #673ab7;
     --accent-color: #7c4dff;
     --light-color: #ede7f6;
     --dark-color: #311b92;
     --text-color: #f5f5f5;
+    --text-light: #bdbdbd;
     --background-color: #212121;
     --card-bg-color: #333333;
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Theme Transitions */
 body {
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color var(--transition-speed) ease, 
+                color var(--transition-speed) ease;
     background-color: var(--background-color);
     color: var(--text-color);
+    font-family: var(--font-family);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
 }
 
+/* Card Effect */
 .card-effect {
     background-color: var(--card-bg-color);
-    transition: background-color 0.3s ease;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    transition: box-shadow var(--transition-speed) ease, 
+                background-color var(--transition-speed) ease;
+    overflow: hidden;
 }
 
-/* Dark theme specific adjustments */
-[data-theme="dark"] .card-effect {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+.card-effect:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-[data-theme="dark"] .menu-item,
-[data-theme="dark"] .order-item,
-[data-theme="dark"] input,
-[data-theme="dark"] select {
-    background-color: #424242;
-    color: #f5f5f5;
-    border-color: #616161;
+/* Button Styles */
+.btn-primary, 
+.btn-secondary, 
+.btn-danger, 
+.btn-success, 
+.btn-warning {
+    padding: 10px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-family);
 }
 
-[data-theme="dark"] .order-item:hover {
-    background-color: #484848;
-}
-
-[data-theme="dark"] .inventory-table th {
-    background-color: var(--dark-color);
+.btn-primary {
+    background-color: var(--primary-color);
     color: white;
 }
 
-[data-theme="dark"] .inventory-table tbody tr:hover,
-[data-theme="dark"] .report-table tbody tr:hover {
-    background-color: #484848;
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: var(--primary-dark);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #d32f2f;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #388e3c;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #f57c00;
+}
+
+.btn-payment {
+    padding: 15px 20px;
+    border: 2px solid var(--primary-color);
+    background-color: var(--light-color);
+    color: var(--primary-color);
+    border-radius: var(--border-radius);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    min-width: 120px;
+}
+
+.btn-payment:hover, .btn-payment.selected {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Input Styles */
+.input-effect {
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: var(--border-radius);
+    width: 100%;
+    transition: all var(--transition-speed) ease;
+    font-family: var(--font-family);
+}
+
+.input-effect:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(106, 27, 154, 0.2);
+    outline: none;
 }
 
 /* Toggle Switch for Settings */
@@ -136,4 +238,92 @@ input:focus + .toggle-slider {
 
 input:checked + .toggle-slider:before {
     transform: translateX(26px);
+}
+
+/* Loading Animation */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.5s ease;
+}
+
+.loading-overlay.fade-out {
+    opacity: 0;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--light-color);
+    border-top: 5px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Ripple Effect */
+.ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.3);
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Dark Theme Specific Styles */
+[data-theme="dark"] .card-effect {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .toggle-slider {
+    background-color: #555;
+}
+
+[data-theme="dark"] .input-effect {
+    background-color: #444;
+    color: #f5f5f5;
+    border-color: #666;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .btn-primary, 
+    .btn-secondary, 
+    .btn-danger, 
+    .btn-success, 
+    .btn-warning {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .card-effect {
+        margin-bottom: 15px;
+    }
 }
