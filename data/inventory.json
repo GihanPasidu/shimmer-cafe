@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Coffee Beans",
+    "category": "ingredients",
+    "stock": 25,
+    "unit": "kg",
+    "reorderLevel": 5
+  },
+  {
+    "id": 2,
+    "name": "Milk",
+    "category": "ingredients",
+    "stock": 35,
+    "unit": "liters",
+    "reorderLevel": 10
+  },
+  {
+    "id": 3,
+    "name": "Tea Bags",
+    "category": "ingredients",
+    "stock": 150,
+    "unit": "boxes",
+    "reorderLevel": 20
+  }
+]

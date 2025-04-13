@@ -1,0 +1,25 @@
+[
+  {
+    "id": 1,
+    "items": [
+      {
+        "id": 1,
+        "name": "Cappuccino",
+        "price": 4.99,
+        "quantity": 2
+      },
+      {
+        "id": 6,
+        "name": "Croissant",
+        "price": 3.50,
+        "quantity": 1
+      }
+    ],
+    "subtotal": 13.48,
+    "tax": 1.35,
+    "total": 14.83,
+    "paymentMethod": "card",
+    "date": "2023-09-15T09:23:18.452Z",
+    "status": "completed"
+  }
+]

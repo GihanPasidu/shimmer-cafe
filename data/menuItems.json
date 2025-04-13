@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Cappuccino",
+    "category": "coffee",
+    "price": 4.99,
+    "image": "cappuccino.jpg",
+    "ingredients": ["espresso", "steamed milk", "milk foam"]
+  },
+  {
+    "id": 2,
+    "name": "Latte",
+    "category": "coffee",
+    "price": 4.50,
+    "image": "latte.jpg",
+    "ingredients": ["espresso", "steamed milk"]
+  },
+  {
+    "id": 3,
+    "name": "Espresso",
+    "category": "coffee",
+    "price": 3.50,
+    "image": "espresso.jpg",
+    "ingredients": ["espresso"]
+  }
+]
