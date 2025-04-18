@@ -1,281 +1,169 @@
 /**
- * Shimmer Cafe - Theme System
- * Provides multiple color themes and common UI component styling
+ * Theme system for Shimmer Cafe
+ * Provides color variables for different themes
  */
 
+/* Base theme (Light) */
 :root {
-    /* Default Theme - Purple */
-    --primary-color: #6a1b9a;
-    --primary-dark: #38006b;
-    --primary-light: #9c4dcc;
-    --secondary-color: #9c27b0;
-    --accent-color: #d500f9;
-    --light-color: #f3e5f5;
-    --dark-color: #4a148c;
-    --text-color: #333;
-    --text-light: #757575;
-    --success-color: #4caf50;
-    --danger-color: #f44336;
-    --warning-color: #ff9800;
-    --info-color: #2196f3;
-    --background-color: #f9f9f9;
-    --card-bg-color: #ffffff;
-    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --transition-speed: 0.3s;
+    --primary-color: #8a2be2; /* Purple */
+    --primary-dark: #6a1cb2;
+    --primary-light: #a94eff;
+    --primary-color-alpha: rgba(138, 43, 226, 0.2);
+    
+    --secondary-color: #f0f0f0;
+    --secondary-dark: #e0e0e0;
+    
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    
+    --bg-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --secondary-bg: #f2f2f2;
+    --hover-color: #e9ecef;
+    --border-color: #dee2e6;
+    
+    --text-color: #333333;
+    --muted-text: #6c757d;
+    --light-text: #ffffff;
+    --heading-color: #212529;
+    
+    --input-bg: #ffffff;
+    
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --border-radius: 8px;
-    --font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    --transition-speed: 0.3s;
 }
 
-/* Blue Theme */
-[data-theme="blue"] {
-    --primary-color: #1a237e;
-    --primary-dark: #000051;
-    --primary-light: #534bae;
-    --secondary-color: #3f51b5;
-    --accent-color: #536dfe;
-    --light-color: #e8eaf6;
-    --dark-color: #0d47a1;
-    --background-color: #f5f7fa;
+/* Purple Theme */
+[data-theme="purple"] {
+    --primary-color: #8a2be2;
+    --primary-dark: #6a1cb2;
+    --primary-light: #a94eff;
+    --primary-color-alpha: rgba(138, 43, 226, 0.2);
 }
 
 /* Teal Theme */
 [data-theme="teal"] {
-    --primary-color: #004d40;
-    --primary-dark: #00251a;
-    --primary-light: #39796b;
-    --secondary-color: #00796b;
-    --accent-color: #00bfa5;
-    --light-color: #e0f2f1;
-    --dark-color: #00352c;
-    --background-color: #f2f7f7;
+    --primary-color: #20c997;
+    --primary-dark: #17a67a;
+    --primary-light: #3dd8aa;
+    --primary-color-alpha: rgba(32, 201, 151, 0.2);
 }
 
-/* Dark Theme */
+/* Blue Theme */
+[data-theme="blue"] {
+    --primary-color: #0d6efd;
+    --primary-dark: #0a58ca;
+    --primary-light: #3d8bfd;
+    --primary-color-alpha: rgba(13, 110, 253, 0.2);
+}
+
+/* Dark Mode Theme */
 [data-theme="dark"] {
-    --primary-color: #512da8;
-    --primary-dark: #140078;
-    --primary-light: #8559da;
-    --secondary-color: #673ab7;
-    --accent-color: #7c4dff;
-    --light-color: #ede7f6;
-    --dark-color: #311b92;
-    --text-color: #f5f5f5;
-    --text-light: #bdbdbd;
-    --background-color: #212121;
-    --card-bg-color: #333333;
-    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --primary-color: #bb86fc;
+    --primary-dark: #9d4edd;
+    --primary-light: #d7b5fc;
+    --primary-color-alpha: rgba(187, 134, 252, 0.2);
+    
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --secondary-bg: #2d2d2d;
+    --hover-color: #3a3a3a;
+    --border-color: #444444;
+    
+    --text-color: #e0e0e0;
+    --muted-text: #aaaaaa;
+    --light-text: #ffffff;
+    --heading-color: #ffffff;
+    
+    --input-bg: #2d2d2d;
+    
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
 }
 
-/* Theme Transitions */
-body {
-    transition: background-color var(--transition-speed) ease, 
-                color var(--transition-speed) ease;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    font-family: var(--font-family);
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-}
-
-/* Card Effect */
-.card-effect {
-    background-color: var(--card-bg-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    transition: box-shadow var(--transition-speed) ease, 
-                background-color var(--transition-speed) ease;
-    overflow: hidden;
-}
-
-.card-effect:hover {
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* Button Styles */
-.btn-primary, 
-.btn-secondary, 
-.btn-danger, 
-.btn-success, 
-.btn-warning {
-    padding: 10px 16px;
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all var(--transition-speed) ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-family: var(--font-family);
-}
-
+/* Button styles */
 .btn-primary {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--light-text);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+    font-weight: 500;
 }
 
 .btn-primary:hover {
     background-color: var(--primary-dark);
 }
 
+.btn-primary.disabled,
+.btn-primary:disabled {
+    background-color: var(--primary-color);
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
 .btn-secondary {
     background-color: var(--secondary-color);
-    color: white;
+    color: var(--text-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+    font-weight: 500;
 }
 
 .btn-secondary:hover {
-    background-color: var(--primary-dark);
+    background-color: var(--secondary-dark);
 }
 
 .btn-danger {
     background-color: var(--danger-color);
-    color: white;
+    color: var(--light-text);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+    font-weight: 500;
 }
 
 .btn-danger:hover {
-    background-color: #d32f2f;
+    background-color: #c82333;
 }
 
 .btn-success {
     background-color: var(--success-color);
-    color: white;
+    color: var(--light-text);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+    font-weight: 500;
 }
 
 .btn-success:hover {
-    background-color: #388e3c;
+    background-color: #218838;
 }
 
-.btn-warning {
-    background-color: var(--warning-color);
-    color: white;
+/* Ripple effect animation */
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
 }
 
-.btn-warning:hover {
-    background-color: #f57c00;
-}
-
-.btn-payment {
-    padding: 15px 20px;
-    border: 2px solid var(--primary-color);
-    background-color: var(--light-color);
-    color: var(--primary-color);
-    border-radius: var(--border-radius);
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-speed) ease;
-    min-width: 120px;
-}
-
-.btn-payment:hover, .btn-payment.selected {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-/* Input Styles */
-.input-effect {
-    border: 1px solid #ddd;
-    padding: 10px;
-    border-radius: var(--border-radius);
-    width: 100%;
-    transition: all var(--transition-speed) ease;
-    font-family: var(--font-family);
-}
-
-.input-effect:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(106, 27, 154, 0.2);
-    outline: none;
-}
-
-/* Toggle Switch for Settings */
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 60px;
-    height: 34px;
-}
-
-.toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
-}
-
-.toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 26px;
-    width: 26px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    transition: .4s;
-    border-radius: 50%;
-}
-
-input:checked + .toggle-slider {
-    background-color: var(--primary-color);
-}
-
-input:focus + .toggle-slider {
-    box-shadow: 0 0 1px var(--primary-color);
-}
-
-input:checked + .toggle-slider:before {
-    transform: translateX(26px);
-}
-
-/* Loading Animation */
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--background-color);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    transition: opacity 0.5s ease;
-}
-
-.loading-overlay.fade-out {
-    opacity: 0;
-}
-
-.spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid var(--light-color);
-    border-top: 5px solid var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 20px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Ripple Effect */
 .ripple {
     position: relative;
     overflow: hidden;
@@ -290,40 +178,37 @@ input:checked + .toggle-slider:before {
     pointer-events: none;
 }
 
-@keyframes ripple {
-    to {
-        transform: scale(4);
-        opacity: 0;
-    }
+/* Loading animation */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.5s ease-out;
 }
 
-/* Dark Theme Specific Styles */
-[data-theme="dark"] .card-effect {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+.loading-overlay.fade-out {
+    opacity: 0;
 }
 
-[data-theme="dark"] .toggle-slider {
-    background-color: #555;
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--primary-color-alpha);
+    border-top: 5px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
 }
 
-[data-theme="dark"] .input-effect {
-    background-color: #444;
-    color: #f5f5f5;
-    border-color: #666;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-    .btn-primary, 
-    .btn-secondary, 
-    .btn-danger, 
-    .btn-success, 
-    .btn-warning {
-        padding: 8px 12px;
-        font-size: 0.9rem;
-    }
-    
-    .card-effect {
-        margin-bottom: 15px;
-    }
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

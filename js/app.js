@@ -1,14 +1,18 @@
 /**
- * Shimmer Cafe - Main Application
- * Controls all UI interactions and business logic
+ * Main application for Shimmer Cafe
+ * Handles UI interactions and business logic
  */
 
-document.addEventListener('DOMContentLoaded', function() {
-    const app = new ShimmerCafeApp();
-    app.init();
-});
+// Initialize toastr notification settings
+toastr.options = {
+    closeButton: true,
+    progressBar: true,
+    positionClass: "toast-bottom-right",
+    timeOut: 3000
+};
 
-class ShimmerCafeApp {
+// Application class
+class CafeApp {
     constructor() {
         this.currentPage = 'pos';
         this.currentOrder = {
@@ -17,309 +21,267 @@ class ShimmerCafeApp {
             tax: 0,
             total: 0
         };
-        this.settings = db.getSettings();
-        this.setupToastr();
-        this.charts = {};
+        this.modalActive = false;
+        this.activeCategoryTab = 'coffee';
     }
 
-    init() {
-        console.log('Initializing Shimmer Cafe Application...');
+    // Initialize the application
+    async init() {
+        // Initialize database first
+        const dbInitialized = await db.init();
+        if (!dbInitialized) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Database Error',
+                text: 'Failed to initialize the database. Please refresh or contact support.',
+                confirmButtonText: 'Refresh',
+            }).then(() => {
+                window.location.reload();
+            });
+            return;
+        }
+
+        // Apply theme from settings
+        this.applyTheme(db.getSettings().theme);
+
+        // Set up navigation
         this.setupNavigation();
-        this.loadPage(this.currentPage);
-        this.addRippleEffect();
-        this.applyTheme(this.settings.theme || 'purple');
+
+        // Load initial page (POS)
+        this.loadPage('pos');
+
+        // Register global event handlers
+        this.setupEventListeners();
+
+        // Log initialization
+        console.log('Shimmer Cafe application initialized');
     }
 
-    setupToastr() {
-        // Configure toastr notification library
-        toastr.options = {
-            closeButton: true,
-            progressBar: true,
-            positionClass: "toast-bottom-right",
-            timeOut: 3000,
-            showMethod: "fadeIn",
-            hideMethod: "fadeOut",
-            preventDuplicates: true
-        };
-    }
-
+    // Apply theme from settings
     applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme || 'purple');
     }
 
-    addRippleEffect() {
-        // Add ripple effect to all buttons with ripple class
-        document.addEventListener('click', function(e) {
-            const target = e.target.closest('.ripple');
-            if (!target) return;
-            
-            const rect = target.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            const ripple = document.createElement('div');
-            ripple.className = 'ripple-effect';
-            ripple.style.left = `${x}px`;
-            ripple.style.top = `${y}px`;
-            
-            target.appendChild(ripple);
-            
-            setTimeout(() => {
-                ripple.remove();
-            }, 600);
-        });
-    }
-
+    // Set up navigation event listeners
     setupNavigation() {
         const navLinks = document.querySelectorAll('nav a');
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const page = link.getAttribute('data-page');
+                this.loadPage(page);
                 
-                // Don't reload if we're already on this page
-                if (this.currentPage === page) return;
-                
-                // Update active link
+                // Update active navigation
                 navLinks.forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
-                
-                this.loadPage(page);
             });
         });
     }
 
+    // Load page content
     loadPage(page) {
         this.currentPage = page;
         const mainContent = document.getElementById('main-content');
-        const template = document.getElementById(`${page}-template`);
         
-        if (template) {
-            // Add exit animation
-            mainContent.classList.remove('animate__fadeIn');
-            mainContent.classList.add('animate__fadeOut');
-            
-            setTimeout(() => {
-                mainContent.innerHTML = '';
-                const content = template.content.cloneNode(true);
-                mainContent.appendChild(content);
-                
-                // Add entrance animation
-                mainContent.classList.remove('animate__fadeOut');
-                mainContent.classList.add('animate__fadeIn');
-                
-                // Initialize page specific functionality
-                const methodName = `init${this.capitalizeFirstLetter(page)}Page`;
-                if (this[methodName] && typeof this[methodName] === 'function') {
-                    this[methodName]();
-                } else {
-                    console.warn(`Method ${methodName} not found`);
-                }
-            }, 300);
-        } else {
-            console.error(`Template for page ${page} not found`);
-            mainContent.innerHTML = '<div class="error-message"><i class="fas fa-exclamation-triangle"></i> Page not found</div>';
+        // Clear previous content with animation
+        mainContent.classList.remove('animate__fadeIn');
+        void mainContent.offsetWidth; // Trigger reflow
+        mainContent.classList.add('animate__fadeIn');
+        
+        // Load template for the selected page
+        const template = document.getElementById(`${page}-template`);
+        mainContent.innerHTML = template.innerHTML;
+        
+        // Initialize the appropriate page
+        switch (page) {
+            case 'pos':
+                this.initPosPage();
+                break;
+            case 'inventory':
+                this.initInventoryPage();
+                break;
+            case 'reports':
+                this.initReportsPage();
+                break;
+            case 'settings':
+                this.initSettingsPage();
+                break;
         }
     }
 
-    capitalizeFirstLetter(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
-    }
-
-    // POS Page Functions
+    // Initialize POS page
     initPosPage() {
-        this.loadCategory('coffee'); // Load default category
-        this.setupCategoryTabs();
-        this.renderCurrentOrder();
-        this.setupOrderActions();
-    }
-
-    setupCategoryTabs() {
+        // Load menu items for the active category
+        this.loadMenuItems(this.activeCategoryTab);
+        
+        // Set up category tabs
         const categoryTabs = document.querySelectorAll('.category-tab');
         categoryTabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 categoryTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                const category = tab.getAttribute('data-category');
-                this.loadCategory(category);
+                this.activeCategoryTab = tab.getAttribute('data-category');
+                this.loadMenuItems(this.activeCategoryTab);
             });
         });
+        
+        // Set up order actions
+        document.getElementById('clear-order').addEventListener('click', () => this.clearOrder());
+        document.getElementById('process-payment').addEventListener('click', () => this.showPaymentModal());
     }
 
-    loadCategory(category) {
-        const menuItems = db.getMenuItemsByCategory(category);
+    // Load menu items for selected category
+    loadMenuItems(category) {
+        const menuItems = db.getMenuItems(category);
         const menuContainer = document.querySelector('.menu-items');
         menuContainer.innerHTML = '';
         
-        if (menuItems.length === 0) {
-            menuContainer.innerHTML = '<p class="empty-category">No items found in this category</p>';
-            return;
-        }
-        
-        menuItems.forEach((item, index) => {
-            const itemElement = document.createElement('div');
-            itemElement.className = 'menu-item animate__animated animate__fadeInUp';
-            itemElement.style.animationDelay = `${index * 0.05}s`;
-            itemElement.setAttribute('data-id', item.id);
-            
-            // Create the menu item content
-            let imageContent = '';
-            if (item.image) {
-                imageContent = `<div class="menu-item-image">
-                    <img src="images/${item.image}" alt="${item.name}" onerror="this.parentNode.innerHTML = '<span class=\\'item-initial\\'>${item.name.charAt(0)}</span>'">
-                </div>`;
-            } else {
-                imageContent = `<div class="menu-item-image no-image">
-                    <span class="item-initial">${item.name.charAt(0)}</span>
-                </div>`;
-            }
-            
-            const popularBadge = item.popular ? '<span class="popular-badge"><i class="fas fa-star"></i> Popular</span>' : '';
-            
-            itemElement.innerHTML = `
-                ${popularBadge}
-                ${imageContent}
-                <div class="menu-item-name">${item.name}</div>
-                <div class="menu-item-description">${item.description || ''}</div>
-                <div class="menu-item-price">${this.settings.currency}${item.price.toFixed(2)}</div>
-                <button class="add-to-order ripple"><i class="fas fa-plus"></i> Add</button>
+        menuItems.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'menu-item ripple';
+            menuItem.innerHTML = `
+                <img src="images/menu/${item.image}" alt="${item.name}">
+                <div class="item-details">
+                    <h3>${item.name}</h3>
+                    <p class="price">$${item.price.toFixed(2)}</p>
+                </div>
             `;
-            
-            itemElement.querySelector('.add-to-order').addEventListener('click', () => this.addItemToOrder(item));
-            menuContainer.appendChild(itemElement);
+            menuItem.addEventListener('click', () => this.addToOrder(item));
+            menuContainer.appendChild(menuItem);
         });
     }
 
-    setupOrderActions() {
-        const clearOrderBtn = document.getElementById('clear-order');
-        const processPaymentBtn = document.getElementById('process-payment');
+    // Add item to current order
+    addToOrder(item) {
+        // Check if item already exists
+        const existingItem = this.currentOrder.items.find(i => i.id === item.id);
         
-        if (clearOrderBtn) {
-            clearOrderBtn.addEventListener('click', () => this.clearOrder());
-        }
-        
-        if (processPaymentBtn) {
-            processPaymentBtn.addEventListener('click', () => this.showPaymentModal());
-        }
-    }
-
-    addItemToOrder(item) {
-        // Check if item already exists in the order
-        const existingItemIndex = this.currentOrder.items.findIndex(orderItem => orderItem.id === item.id);
-        
-        if (existingItemIndex !== -1) {
-            // Increment quantity if item already exists
-            this.currentOrder.items[existingItemIndex].quantity++;
-            toastr.info(`Increased ${item.name} quantity to ${this.currentOrder.items[existingItemIndex].quantity}`);
+        if (existingItem) {
+            // Update quantity
+            existingItem.quantity += 1;
         } else {
-            // Add new item to the order
+            // Add new item
             this.currentOrder.items.push({
                 id: item.id,
                 name: item.name,
                 price: item.price,
                 quantity: 1
             });
-            toastr.success(`Added ${item.name} to order`);
         }
         
-        this.updateOrderTotals();
-        this.renderCurrentOrder();
-    }
-
-    updateOrderTotals() {
-        this.currentOrder.subtotal = this.currentOrder.items.reduce((total, item) => 
-            total + (item.price * item.quantity), 0);
+        // Update order display
+        this.updateOrderDisplay();
         
-        this.currentOrder.tax = this.currentOrder.subtotal * (this.settings.taxRate / 100);
-        this.currentOrder.total = this.currentOrder.subtotal + this.currentOrder.tax;
+        // Show notification
+        toastr.success(`Added ${item.name} to order`);
     }
 
-    updateItemQuantity(itemId, quantity) {
-        if (quantity < 1) {
-            this.removeItemFromOrder(itemId);
-            return;
-        }
-        
-        const index = this.currentOrder.items.findIndex(item => item.id === itemId);
-        if (index !== -1) {
-            this.currentOrder.items[index].quantity = quantity;
-            this.updateOrderTotals();
-            this.renderCurrentOrder();
-        }
-    }
-
-    removeItemFromOrder(itemId) {
-        const index = this.currentOrder.items.findIndex(item => item.id === itemId);
-        
-        if (index !== -1) {
-            const itemName = this.currentOrder.items[index].name;
-            this.currentOrder.items.splice(index, 1);
-            this.updateOrderTotals();
-            this.renderCurrentOrder();
-            toastr.warning(`Removed ${itemName} from order`);
-        }
-    }
-
-    renderCurrentOrder() {
+    // Update order display
+    updateOrderDisplay() {
         const orderItemsContainer = document.querySelector('.order-items');
-        
-        if (!orderItemsContainer) return;
-        
         orderItemsContainer.innerHTML = '';
         
         if (this.currentOrder.items.length === 0) {
-            orderItemsContainer.innerHTML = '<p class="empty-order">Your order is empty</p>';
-        } else {
-            this.currentOrder.items.forEach((item, index) => {
-                const orderItemElement = document.createElement('div');
-                orderItemElement.className = 'order-item animate__animated animate__fadeInRight';
-                orderItemElement.style.animationDelay = `${index * 0.05}s`;
-                orderItemElement.innerHTML = `
-                    <div class="order-item-details">
-                        <div class="order-item-name">${item.name}</div>
-                        <div class="order-item-price">${this.settings.currency}${item.price.toFixed(2)} x 
-                            <input type="number" class="quantity-input" value="${item.quantity}" min="1" max="99">
-                        </div>
-                    </div>
-                    <div class="order-item-total">${this.settings.currency}${(item.price * item.quantity).toFixed(2)}</div>
-                    <div class="order-item-actions">
-                        <button class="remove-item ripple"><i class="fas fa-times"></i></button>
-                    </div>
-                `;
-                
-                // Setup quantity change
-                const quantityInput = orderItemElement.querySelector('.quantity-input');
-                quantityInput.addEventListener('change', (e) => {
-                    const newQuantity = parseInt(e.target.value);
-                    this.updateItemQuantity(item.id, newQuantity);
-                });
-                
-                // Setup remove button
-                const removeButton = orderItemElement.querySelector('.remove-item');
-                removeButton.addEventListener('click', () => this.removeItemFromOrder(item.id));
-                
-                orderItemsContainer.appendChild(orderItemElement);
-            });
+            orderItemsContainer.innerHTML = '<p class="empty-order">No items in order</p>';
+            this.updateOrderSummary(0, 0, 0);
+            return;
         }
         
-        // Update the order summary
-        document.getElementById('subtotal').textContent = this.currentOrder.subtotal.toFixed(2);
-        document.getElementById('tax').textContent = this.currentOrder.tax.toFixed(2);
-        document.getElementById('total').textContent = this.currentOrder.total.toFixed(2);
+        let subtotal = 0;
         
-        // Update Process Payment button state
+        // Add each item to the display
+        this.currentOrder.items.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            subtotal += itemTotal;
+            
+            const orderItem = document.createElement('div');
+            orderItem.className = 'order-item';
+            orderItem.innerHTML = `
+                <div class="item-info">
+                    <span class="name">${item.name}</span>
+                    <span class="price">$${item.price.toFixed(2)} × ${item.quantity}</span>
+                </div>
+                <div class="item-total">$${itemTotal.toFixed(2)}</div>
+                <div class="item-actions">
+                    <button class="btn-circle decrease-item" data-id="${item.id}">-</button>
+                    <button class="btn-circle remove-item" data-id="${item.id}"><i class="fas fa-trash"></i></button>
+                    <button class="btn-circle increase-item" data-id="${item.id}">+</button>
+                </div>
+            `;
+            orderItemsContainer.appendChild(orderItem);
+        });
+        
+        // Add event listeners for item actions
+        orderItemsContainer.querySelectorAll('.decrease-item').forEach(btn => {
+            btn.addEventListener('click', () => this.decreaseItemQuantity(parseInt(btn.getAttribute('data-id'))));
+        });
+        
+        orderItemsContainer.querySelectorAll('.increase-item').forEach(btn => {
+            btn.addEventListener('click', () => this.increaseItemQuantity(parseInt(btn.getAttribute('data-id'))));
+        });
+        
+        orderItemsContainer.querySelectorAll('.remove-item').forEach(btn => {
+            btn.addEventListener('click', () => this.removeOrderItem(parseInt(btn.getAttribute('data-id'))));
+        });
+        
+        // Calculate tax and total
+        const taxRate = db.getSettings().taxRate || 10;
+        const tax = subtotal * (taxRate / 100);
+        const total = subtotal + tax;
+        
+        // Update summary
+        this.updateOrderSummary(subtotal, tax, total);
+    }
+
+    // Update the order summary
+    updateOrderSummary(subtotal, tax, total) {
+        document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+        document.getElementById('tax').textContent = tax.toFixed(2);
+        document.getElementById('total').textContent = total.toFixed(2);
+        
+        // Update the current order object
+        this.currentOrder.subtotal = subtotal;
+        this.currentOrder.tax = tax;
+        this.currentOrder.total = total;
+        
+        // Disable/enable payment button
         const processPaymentBtn = document.getElementById('process-payment');
-        if (processPaymentBtn) {
-            if (this.currentOrder.items.length === 0) {
-                processPaymentBtn.setAttribute('disabled', true);
-                processPaymentBtn.classList.add('disabled');
-            } else {
-                processPaymentBtn.removeAttribute('disabled');
-                processPaymentBtn.classList.remove('disabled');
-            }
+        if (this.currentOrder.items.length === 0) {
+            processPaymentBtn.disabled = true;
+            processPaymentBtn.classList.add('disabled');
+        } else {
+            processPaymentBtn.disabled = false;
+            processPaymentBtn.classList.remove('disabled');
         }
     }
 
+    // Decrease item quantity
+    decreaseItemQuantity(itemId) {
+        const item = this.currentOrder.items.find(i => i.id === itemId);
+        if (item && item.quantity > 1) {
+            item.quantity -= 1;
+            this.updateOrderDisplay();
+        } else if (item && item.quantity === 1) {
+            this.removeOrderItem(itemId);
+        }
+    }
+
+    // Increase item quantity
+    increaseItemQuantity(itemId) {
+        const item = this.currentOrder.items.find(i => i.id === itemId);
+        if (item) {
+            item.quantity += 1;
+            this.updateOrderDisplay();
+        }
+    }
+
+    // Remove item from order
+    removeOrderItem(itemId) {
+        this.currentOrder.items = this.currentOrder.items.filter(i => i.id !== itemId);
+        this.updateOrderDisplay();
+    }
+
+    // Clear entire order
     clearOrder() {
         if (this.currentOrder.items.length === 0) return;
         
@@ -328,368 +290,585 @@ class ShimmerCafeApp {
             text: 'Are you sure you want to clear the current order?',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#f44336',
-            cancelButtonColor: '#6a1b9a',
-            confirmButtonText: 'Yes, clear it!',
-            cancelButtonText: 'No, keep it',
-            customClass: {
-                container: 'swal-container'
-            }
+            confirmButtonText: 'Yes, clear it',
+            cancelButtonText: 'Cancel'
         }).then((result) => {
             if (result.isConfirmed) {
-                this.currentOrder = {
-                    items: [],
-                    subtotal: 0,
-                    tax: 0,
-                    total: 0
-                };
-                this.renderCurrentOrder();
-                toastr.success('Order cleared successfully');
+                this.currentOrder.items = [];
+                this.updateOrderDisplay();
+                toastr.info('Order has been cleared');
             }
         });
     }
 
+    // Show payment modal
     showPaymentModal() {
-        if (this.currentOrder.items.length === 0) {
-            Swal.fire({
-                title: 'Empty Order',
-                text: 'Please add items to the order before processing payment.',
-                icon: 'info',
-                confirmButtonColor: '#6a1b9a'
+        if (this.currentOrder.items.length === 0) return;
+        
+        // Create modal backdrop
+        const modalBackdrop = document.createElement('div');
+        modalBackdrop.className = 'modal-backdrop';
+        document.body.appendChild(modalBackdrop);
+        
+        // Create modal container
+        const modalContainer = document.createElement('div');
+        modalContainer.className = 'modal-container';
+        
+        // Add content from template
+        const modalTemplate = document.getElementById('payment-modal-template');
+        modalContainer.innerHTML = modalTemplate.innerHTML;
+        document.body.appendChild(modalContainer);
+        
+        // Set total amount
+        document.getElementById('payment-amount').textContent = this.currentOrder.total.toFixed(2);
+        
+        // Setup payment method buttons
+        const paymentButtons = modalContainer.querySelectorAll('.btn-payment');
+        paymentButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const method = btn.getAttribute('data-method');
+                paymentButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                if (method === 'cash') {
+                    document.getElementById('cash-input').classList.remove('hidden');
+                    document.getElementById('cash-amount').focus();
+                } else {
+                    document.getElementById('cash-input').classList.add('hidden');
+                }
             });
+        });
+        
+        // Setup cash amount input
+        const cashInput = document.getElementById('cash-amount');
+        cashInput.addEventListener('input', () => {
+            const cashAmount = parseFloat(cashInput.value) || 0;
+            const change = cashAmount - this.currentOrder.total;
+            document.getElementById('change').textContent = change >= 0 ? change.toFixed(2) : '0.00';
+        });
+        
+        // Setup action buttons
+        document.getElementById('cancel-payment').addEventListener('click', () => {
+            this.closeModal(modalContainer, modalBackdrop);
+        });
+        
+        document.getElementById('complete-payment').addEventListener('click', () => {
+            this.processOrder(modalContainer, modalBackdrop);
+        });
+        
+        // Close on backdrop click
+        modalBackdrop.addEventListener('click', () => {
+            this.closeModal(modalContainer, modalBackdrop);
+        });
+        
+        // Set modal active state
+        this.modalActive = true;
+    }
+
+    // Close modal
+    closeModal(modalContainer, modalBackdrop) {
+        modalContainer.classList.add('animate__fadeOutUp');
+        modalBackdrop.classList.add('fade-out');
+        
+        setTimeout(() => {
+            document.body.removeChild(modalContainer);
+            document.body.removeChild(modalBackdrop);
+            this.modalActive = false;
+        }, 300);
+    }
+
+    // Process order and complete payment
+    processOrder(modalContainer, modalBackdrop) {
+        const activeMethod = modalContainer.querySelector('.btn-payment.active');
+        if (!activeMethod) {
+            toastr.error('Please select a payment method');
             return;
         }
         
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'modal';
+        const paymentMethod = activeMethod.getAttribute('data-method');
         
-        // Clone payment modal template
-        const template = document.getElementById('payment-modal-template');
-        const modalContent = template.content.cloneNode(true);
-        
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-        
-        // Set payment amount
-        document.getElementById('payment-amount').textContent = this.currentOrder.total.toFixed(2);
-        
-        // Setup payment method selection
-        const paymentMethods = modal.querySelectorAll('.payment-methods button');
-        let selectedMethod = 'cash'; // Default
-        
-        paymentMethods.forEach(button => {
-            button.addEventListener('click', () => {
-                paymentMethods.forEach(b => b.classList.remove('selected'));
-                button.classList.add('selected');
-                selectedMethod = button.getAttribute('data-method');
-                
-                // Show/hide cash input
-                const cashInput = document.getElementById('cash-input');
-                if (selectedMethod === 'cash') {
-                    cashInput.classList.remove('hidden');
-                    cashInput.classList.add('animate__animated', 'animate__fadeIn');
-                    cashInput.querySelector('input').focus();
-                } else {
-                    cashInput.classList.add('hidden');
-                }
-            });
-        });
-        
-        // Select cash by default
-        paymentMethods[0].classList.add('selected');
-        
-        // Setup cash amount input
-        const cashAmountInput = document.getElementById('cash-amount');
-        if (cashAmountInput) {
-            cashAmountInput.value = this.currentOrder.total.toFixed(2);
-            cashAmountInput.addEventListener('input', () => {
-                const cashAmount = parseFloat(cashAmountInput.value) || 0;
-                const change = cashAmount - this.currentOrder.total;
-                document.getElementById('change').textContent = change >= 0 ? change.toFixed(2) : '0.00';
-            });
-            cashAmountInput.focus();
-            cashAmountInput.select();
-            
-            // Trigger input event to calculate initial change
-            const event = new Event('input');
-            cashAmountInput.dispatchEvent(event);
+        // For cash payments, validate amount
+        if (paymentMethod === 'cash') {
+            const cashAmount = parseFloat(document.getElementById('cash-amount').value) || 0;
+            if (cashAmount < this.currentOrder.total) {
+                toastr.error('Insufficient cash amount');
+                return;
+            }
         }
         
-        // Setup cancel button
-        const cancelButton = document.getElementById('cancel-payment');
-        cancelButton.addEventListener('click', () => {
-            modal.classList.add('animate__animated', 'animate__fadeOut');
-            setTimeout(() => {
-                document.body.removeChild(modal);
-            }, 300);
-        });
+        // Create order in database
+        const orderData = {
+            items: [...this.currentOrder.items],
+            subtotal: this.currentOrder.subtotal,
+            tax: this.currentOrder.tax,
+            total: this.currentOrder.total,
+            paymentMethod: paymentMethod
+        };
         
-        // Setup complete button
-        const completeButton = document.getElementById('complete-payment');
-        completeButton.addEventListener('click', () => {
-            if (selectedMethod === 'cash') {
-                const cashAmount = parseFloat(cashAmountInput.value) || 0;
-                if (cashAmount < this.currentOrder.total) {
-                    Swal.fire({
-                        title: 'Insufficient Cash',
-                        text: 'Cash amount is less than the total amount.',
-                        icon: 'error',
-                        confirmButtonColor: '#6a1b9a'
-                    });
-                    return;
-                }
+        const order = db.createOrder(orderData);
+        
+        // Close modal
+        this.closeModal(modalContainer, modalBackdrop);
+        
+        // Show success message
+        Swal.fire({
+            icon: 'success',
+            title: 'Order Completed',
+            text: `Order #${order.id} has been processed successfully`,
+            confirmButtonText: 'Print Receipt',
+            showCancelButton: true,
+            cancelButtonText: 'Close'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                this.printReceipt(order);
             }
-            
-            // Process the order
-            this.processOrder(selectedMethod);
-            
-            // Close the modal
-            modal.classList.add('animate__animated', 'animate__fadeOut');
-            setTimeout(() => {
-                document.body.removeChild(modal);
-            }, 300);
+            // Clear the order
+            this.currentOrder.items = [];
+            this.updateOrderDisplay();
         });
     }
 
-    processOrder(paymentMethod) {
-        // Create a new order in the database
-        const order = db.createOrder(
-            this.currentOrder.items,
-            this.currentOrder.subtotal,
-            this.currentOrder.tax,
-            this.currentOrder.total,
-            paymentMethod
-        );
+    // Print receipt (simulated)
+    printReceipt(order) {
+        console.log('Printing receipt for order:', order);
+        toastr.info('Receipt sent to printer');
+    }
+
+    // Initialize inventory page
+    initInventoryPage() {
+        this.loadInventory();
         
-        // Print or display receipt
+        // Setup add item button
+        document.getElementById('add-item').addEventListener('click', () => {
+            this.showAddItemModal();
+        });
+        
+        // Setup update stock button
+        document.getElementById('update-stock').addEventListener('click', () => {
+            this.showUpdateStockModal();
+        });
+    }
+
+    // Load inventory items
+    loadInventory() {
+        const inventory = db.getInventory();
+        const inventoryList = document.getElementById('inventory-list');
+        inventoryList.innerHTML = '';
+        
+        inventory.forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Highlight low stock items
+            if (item.stock <= item.reorderLevel) {
+                row.classList.add('low-stock');
+            }
+            
+            row.innerHTML = `
+                <td>${item.name}</td>
+                <td>${item.category}</td>
+                <td>${item.stock} ${item.unit}</td>
+                <td>${item.reorderLevel} ${item.unit}</td>
+                <td>
+                    <button class="btn-icon edit-item" data-id="${item.id}"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon update-stock-item" data-id="${item.id}"><i class="fas fa-plus-minus"></i></button>
+                </td>
+            `;
+            inventoryList.appendChild(row);
+        });
+        
+        // Add event listeners for item actions
+        inventoryList.querySelectorAll('.edit-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const itemId = parseInt(btn.getAttribute('data-id'));
+                this.editInventoryItem(itemId);
+            });
+        });
+        
+        inventoryList.querySelectorAll('.update-stock-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const itemId = parseInt(btn.getAttribute('data-id'));
+                this.updateStockItem(itemId);
+            });
+        });
+    }
+
+    // Show add item modal (simulated)
+    showAddItemModal() {
         Swal.fire({
-            title: 'Order Completed!',
-            html: this.generateReceiptHTML(order),
-            icon: 'success',
-            confirmButtonText: 'Print Receipt',
+            title: 'Add Inventory Item',
+            text: 'This feature is not implemented in the demo',
+            icon: 'info'
+        });
+    }
+
+    // Show update stock modal (simulated)
+    showUpdateStockModal() {
+        Swal.fire({
+            title: 'Update Stock Levels',
+            text: 'This feature is not implemented in the demo',
+            icon: 'info'
+        });
+    }
+
+    // Edit inventory item (simulated)
+    editInventoryItem(itemId) {
+        const item = db.getInventory().find(i => i.id === itemId);
+        
+        Swal.fire({
+            title: `Edit ${item.name}`,
+            text: 'This feature is not fully implemented in the demo',
+            icon: 'info'
+        });
+    }
+
+    // Update stock of specific item (simulated)
+    updateStockItem(itemId) {
+        const item = db.getInventory().find(i => i.id === itemId);
+        
+        Swal.fire({
+            title: `Update ${item.name} Stock`,
+            input: 'number',
+            inputLabel: 'New stock level',
+            inputValue: item.stock,
             showCancelButton: true,
-            cancelButtonText: 'Close',
-            confirmButtonColor: '#6a1b9a',
-            cancelButtonColor: '#9e9e9e',
-            customClass: {
-                popup: 'receipt-popup'
+            confirmButtonText: 'Update',
+            inputValidator: (value) => {
+                if (!value || value < 0) {
+                    return 'Please enter a valid stock level';
+                }
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                window.print();
+                const newStock = parseInt(result.value);
+                db.updateInventoryItem(itemId, { stock: newStock });
+                this.loadInventory();
+                toastr.success(`Updated ${item.name} stock to ${newStock} ${item.unit}`);
             }
         });
-        
-        // Clear the current order
-        this.currentOrder = {
-            items: [],
-            subtotal: 0,
-            tax: 0,
-            total: 0
-        };
-        this.renderCurrentOrder();
-    }
-    
-    generateReceiptHTML(order) {
-        return `
-            <div class="receipt">
-                <h3>${this.settings.cafeName}</h3>
-                <p>Order #${order.id}</p>
-                <p>${new Date(order.date).toLocaleString()}</p>
-                <hr>
-                <div class="receipt-items">
-                    ${order.items.map(item => `
-                        <div class="receipt-item">
-                            <span>${item.quantity} x ${item.name}</span>
-                            <span>${this.settings.currency}${(item.price * item.quantity).toFixed(2)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-                <hr>
-                <div class="receipt-totals">
-                    <div><span>Subtotal:</span> <span>${this.settings.currency}${order.subtotal.toFixed(2)}</span></div>
-                    <div><span>Tax (${this.settings.taxRate}%):</span> <span>${this.settings.currency}${order.tax.toFixed(2)}</span></div>
-                    <div class="receipt-total"><span>Total:</span> <span>${this.settings.currency}${order.total.toFixed(2)}</span></div>
-                    <div><span>Payment Method:</span> <span>${paymentMethod.toUpperCase()}</span></div>
-                </div>
-                <hr>
-                <p>Thank you for your purchase!</p>
-            </div>
-        `;
     }
 
-    // ... Other page initializer methods and helper functions ...
-    
-    // Inventory Page
-    initInventoryPage() {
-        this.loadInventoryItems();
-        this.setupInventoryActions();
-    }
-    
-    // ... Continue with detailed implementation of other pages ...
-    
-    // Settings Page Functions
-    initSettingsPage() {
-        this.populateSettingsForm();
-        this.setupSettingsForm();
-    }
-    
-    populateSettingsForm() {
-        const cafeNameInput = document.getElementById('cafe-name');
-        const taxRateInput = document.getElementById('tax-rate');
-        
-        if (cafeNameInput) cafeNameInput.value = this.settings.cafeName || 'Shimmer Cafe';
-        if (taxRateInput) taxRateInput.value = this.settings.taxRate || 10;
-        
-        // Add theme switcher
-        const themeSelector = document.createElement('div');
-        themeSelector.className = 'form-control';
-        themeSelector.innerHTML = `
-            <label for="theme-selector">Theme</label>
-            <select id="theme-selector" class="input-effect">
-                <option value="purple" ${this.settings.theme === 'purple' ? 'selected' : ''}>Purple (Default)</option>
-                <option value="blue" ${this.settings.theme === 'blue' ? 'selected' : ''}>Blue</option>
-                <option value="teal" ${this.settings.theme === 'teal' ? 'selected' : ''}>Teal</option>
-                <option value="dark" ${this.settings.theme === 'dark' ? 'selected' : ''}>Dark</option>
-            </select>
-        `;
-        
-        const firstSettingGroup = document.querySelector('.setting-group');
-        if (firstSettingGroup) {
-            firstSettingGroup.appendChild(themeSelector);
-        }
-        
-        // Add animation toggle
-        const animationToggle = document.createElement('div');
-        animationToggle.className = 'form-control';
-        animationToggle.innerHTML = `
-            <label for="animation-toggle">Enable Animations</label>
-            <div class="toggle-switch">
-                <input type="checkbox" id="animation-toggle" ${this.settings.animations !== false ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-            </div>
-        `;
-        
-        if (firstSettingGroup) {
-            firstSettingGroup.appendChild(animationToggle);
-        }
-        
-        // Add theme change listener
-        const themeSelectorElement = document.getElementById('theme-selector');
-        if (themeSelectorElement) {
-            themeSelectorElement.addEventListener('change', (e) => {
-                this.applyTheme(e.target.value);
-            });
-        }
-    }
-    
-    setupSettingsForm() {
-        const settingsForm = document.getElementById('settings-form');
-        
-        if (!settingsForm) return;
-        
-        // Setup backup button
-        const backupButton = document.getElementById('backup-data');
-        if (backupButton) {
-            backupButton.addEventListener('click', () => {
-                db.backupData();
-                toastr.success('Data backup created successfully!');
-            });
-        }
-        
-        // Setup restore button
-        const restoreButton = document.getElementById('restore-data');
-        if (restoreButton) {
-            restoreButton.addEventListener('click', () => {
-                // Create file input for JSON upload
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.json';
-                fileInput.style.display = 'none';
-                document.body.appendChild(fileInput);
+    // Initialize reports page
+    initReportsPage() {
+        // Setup report buttons
+        const reportButtons = document.querySelectorAll('.report-options button');
+        reportButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                reportButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
                 
-                fileInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                            try {
-                                const result = db.importData(event.target.result);
-                                if (result) {
-                                    // Update settings
-                                    this.settings = db.getSettings();
-                                    
-                                    // Show success message
-                                    Swal.fire({
-                                        title: 'Success!',
-                                        text: 'Data has been restored successfully. The page will now reload.',
-                                        icon: 'success',
-                                        confirmButtonColor: '#6a1b9a'
-                                    }).then(() => {
-                                        window.location.reload();
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        title: 'Error',
-                                        text: 'Failed to restore data. The file might be corrupted.',
-                                        icon: 'error',
-                                        confirmButtonColor: '#6a1b9a'
-                                    });
-                                }
-                            } catch (error) {
-                                console.error('Import error:', error);
-                                Swal.fire({
-                                    title: 'Error',
-                                    text: 'Invalid backup file format.',
-                                    icon: 'error',
-                                    confirmButtonColor: '#6a1b9a'
-                                });
-                            }
-                            document.body.removeChild(fileInput);
-                        };
-                        reader.readAsText(file);
+                const reportType = btn.getAttribute('data-report');
+                this.loadReport(reportType);
+            });
+        });
+        
+        // Load default report
+        this.loadReport('daily');
+    }
+
+    // Load report data and generate chart
+    loadReport(reportType) {
+        // Demo data for charts
+        let chartData;
+        let chartTitle;
+        
+        const reportDetails = document.getElementById('report-details');
+        
+        switch (reportType) {
+            case 'daily':
+                chartTitle = 'Daily Sales Report';
+                chartData = {
+                    labels: ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM'],
+                    datasets: [{
+                        label: 'Sales ($)',
+                        data: [42, 85, 101, 120, 152, 110, 90, 65, 72],
+                        backgroundColor: 'rgba(138, 43, 226, 0.2)',
+                        borderColor: 'rgba(138, 43, 226, 1)',
+                        borderWidth: 2,
+                        tension: 0.3
+                    }]
+                };
+                reportDetails.innerHTML = `
+                    <h3>Daily Summary</h3>
+                    <div class="report-summary">
+                        <div class="summary-item">
+                            <span class="label">Total Sales</span>
+                            <span class="value">$837.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Orders</span>
+                            <span class="value">42</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Avg Order Value</span>
+                            <span class="value">$19.93</span>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'weekly':
+                chartTitle = 'Weekly Sales Report';
+                chartData = {
+                    labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                    datasets: [{
+                        label: 'Sales ($)',
+                        data: [720, 850, 795, 810, 920, 1100, 980],
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        tension: 0.3
+                    }]
+                };
+                reportDetails.innerHTML = `
+                    <h3>Weekly Summary</h3>
+                    <div class="report-summary">
+                        <div class="summary-item">
+                            <span class="label">Total Sales</span>
+                            <span class="value">$6,175.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Orders</span>
+                            <span class="value">315</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Busiest Day</span>
+                            <span class="value">Saturday</span>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'monthly':
+                chartTitle = 'Monthly Sales Report';
+                chartData = {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [{
+                        label: 'Sales ($)',
+                        data: [18500, 17200, 21300, 19800, 22500, 25100, 27800, 26900, 24200, 21800, 23500, 28900],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 2,
+                        tension: 0.3
+                    }]
+                };
+                reportDetails.innerHTML = `
+                    <h3>Yearly Summary</h3>
+                    <div class="report-summary">
+                        <div class="summary-item">
+                            <span class="label">Total Sales</span>
+                            <span class="value">$277,600.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Best Month</span>
+                            <span class="value">December</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Growth</span>
+                            <span class="value">+12.4%</span>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'popular':
+                chartTitle = 'Popular Items';
+                chartData = {
+                    labels: ['Cappuccino', 'Latte', 'Espresso', 'Mocha', 'Croissant', 'Muffin', 'Sandwich'],
+                    datasets: [{
+                        label: 'Units Sold',
+                        data: [320, 280, 220, 190, 180, 150, 120],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)',
+                            'rgba(255, 159, 64, 0.5)',
+                            'rgba(201, 203, 207, 0.5)'
+                        ],
+                        borderWidth: 1
+                    }]
+                };
+                reportDetails.innerHTML = `
+                    <h3>Most Popular Items</h3>
+                    <div class="report-summary">
+                        <div class="summary-item">
+                            <span class="label">Top Seller</span>
+                            <span class="value">Cappuccino</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Top Category</span>
+                            <span class="value">Coffee</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Trending Item</span>
+                            <span class="value">Mocha (+15%)</span>
+                        </div>
+                    </div>
+                `;
+                break;
+        }
+        
+        // Create or update chart
+        this.renderChart(chartData, chartTitle, reportType === 'popular' ? 'bar' : 'line');
+    }
+
+    // Render chart using Chart.js
+    renderChart(data, title, type = 'line') {
+        const chartContainer = document.getElementById('report-chart');
+        
+        // Destroy previous chart if exists
+        if (this.currentChart) {
+            this.currentChart.destroy();
+        }
+        
+        // Create canvas if it doesn't exist
+        if (!document.getElementById('report-canvas')) {
+            const canvas = document.createElement('canvas');
+            canvas.id = 'report-canvas';
+            chartContainer.innerHTML = '';
+            chartContainer.appendChild(canvas);
+        }
+        
+        // Create chart
+        const ctx = document.getElementById('report-canvas').getContext('2d');
+        this.currentChart = new Chart(ctx, {
+            type: type,
+            data: data,
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: title,
+                        font: {
+                            size: 16
+                        }
+                    },
+                    legend: {
+                        position: 'top',
                     }
-                });
-                
-                fileInput.click();
-            });
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize settings page
+    initSettingsPage() {
+        const settings = db.getSettings();
+        
+        // Populate form with current settings
+        document.getElementById('cafe-name').value = settings.cafeName;
+        document.getElementById('tax-rate').value = settings.taxRate;
+        
+        // Setup form submission
+        document.getElementById('settings-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveSettings();
+        });
+        
+        // Setup backup/restore buttons
+        document.getElementById('backup-data').addEventListener('click', () => this.backupData());
+        document.getElementById('restore-data').addEventListener('click', () => this.restoreData());
+    }
+
+    // Save settings
+    saveSettings() {
+        const cafeName = document.getElementById('cafe-name').value;
+        const taxRate = parseFloat(document.getElementById('tax-rate').value);
+        
+        if (!cafeName || isNaN(taxRate)) {
+            toastr.error('Please fill in all fields correctly');
+            return;
         }
         
-        // Handle form submission
-        settingsForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            const updatedSettings = {
-                cafeName: document.getElementById('cafe-name').value,
-                taxRate: parseFloat(document.getElementById('tax-rate').value),
-                theme: document.getElementById('theme-selector').value,
-                animations: document.getElementById('animation-toggle').checked
-            };
-            
-            // Add loading indicator
-            Swal.fire({
-                title: 'Saving settings...',
-                text: 'Please wait',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-            
-            // Simulate a slight delay for better UX
-            setTimeout(() => {
-                db.updateSettings(updatedSettings);
-                this.settings = updatedSettings;
-                this.applyTheme(updatedSettings.theme);
+        const updatedSettings = db.updateSettings({
+            cafeName: cafeName,
+            taxRate: taxRate,
+            lastUpdated: new Date().toISOString()
+        });
+        
+        toastr.success('Settings saved successfully');
+    }
+
+    // Backup data (simulated)
+    backupData() {
+        const backup = db.generateBackup();
+        const backupStr = JSON.stringify(backup);
+        
+        // In a real app, this would save to a file or cloud storage
+        // For demo, we'll simulate a download
+        const blob = new Blob([backupStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `shimmer-cafe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toastr.success('Backup created successfully');
+    }
+
+    // Restore data (simulated)
+    restoreData() {
+        Swal.fire({
+            title: 'Restore Data',
+            text: 'This would normally allow you to upload a backup file. For this demo, we\'ll simulate a restore.',
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Simulate Restore',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Simulate a restore by using current data
+                const backup = db.generateBackup();
+                db.restoreFromBackup(backup);
                 
-                Swal.fire({
-                    title: 'Success!',
-                    text: 'Settings updated successfully!',
-                    icon: 'success',
-                    confirmButtonColor: '#6a1b9a'
-                });
-            }, 800);
+                toastr.success('Data restored successfully');
+                
+                // Reload current page to reflect changes
+                this.loadPage(this.currentPage);
+            }
+        });
+    }
+
+    // Register global event listeners
+    setupEventListeners() {
+        // Add ripple effect to buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('ripple') || e.target.closest('.ripple')) {
+                const button = e.target.classList.contains('ripple') ? e.target : e.target.closest('.ripple');
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple-effect');
+                
+                const rect = button.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                
+                ripple.style.width = ripple.style.height = `${size}px`;
+                ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+                ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+                
+                button.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            }
         });
     }
 }
+
+// Initialize application when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new CafeApp();
+    app.init();
+    window.cafeApp = app; // Make available globally for debugging
+});
