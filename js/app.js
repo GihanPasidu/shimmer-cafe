@@ -1,287 +1,307 @@
 /**
- * Main application for Shimmer Cafe
- * Handles UI interactions and business logic
+ * Main application logic for Shimmer Cafe
+ * Handles UI interactions, page navigation, and business logic
  */
-
-// Initialize toastr notification settings
-toastr.options = {
-    closeButton: true,
-    progressBar: true,
-    positionClass: "toast-bottom-right",
-    timeOut: 3000
-};
-
-// Application class
-class CafeApp {
+class ShimmerCafeApp {
     constructor() {
-        this.currentPage = 'pos';
-        this.currentOrder = {
-            items: [],
-            subtotal: 0,
-            tax: 0,
-            total: 0
-        };
-        this.modalActive = false;
-        this.activeCategoryTab = 'coffee';
+        this.currentPage = 'pos'; // Default page
+        this.currentOrder = { items: [], subtotal: 0, tax: 0, total: 0 };
+        this.activeCategoryTab = 'coffee'; // Default menu category
+        
+        // Apply user settings
+        this.applySettings();
+        
+        // Initialize event listeners
+        this.initEventListeners();
+        
+        // Load initial page
+        this.loadPage(this.currentPage);
     }
-
-    // Initialize the application
-    async init() {
-        // Initialize database first
-        const dbInitialized = await db.init();
-        if (!dbInitialized) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Database Error',
-                text: 'Failed to initialize the database. Please refresh or contact support.',
-                confirmButtonText: 'Refresh',
-            }).then(() => {
-                window.location.reload();
-            });
-            return;
-        }
-
+    
+    applySettings() {
+        const settings = db.getSettings();
+        
         // Apply theme from settings
-        this.applyTheme(db.getSettings().theme);
-
-        // Set up navigation
-        this.setupNavigation();
-
-        // Load initial page (POS)
-        this.loadPage('pos');
-
-        // Register global event handlers
-        this.setupEventListeners();
-
-        // Log initialization
-        console.log('Shimmer Cafe application initialized');
+        document.documentElement.setAttribute('data-theme', settings.theme || 'purple');
+        
+        // Apply cafe name
+        document.title = `${settings.cafeName || 'Shimmer Cafe'} - Management System`;
+        
+        // Configure toastr notifications
+        toastr.options = {
+            closeButton: true,
+            progressBar: true,
+            positionClass: "toast-bottom-right",
+            timeOut: 3000
+        };
     }
-
-    // Apply theme from settings
-    applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme || 'purple');
-    }
-
-    // Set up navigation event listeners
-    setupNavigation() {
-        const navLinks = document.querySelectorAll('nav a');
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
+    
+    initEventListeners() {
+        // Navigation event listeners
+        document.querySelectorAll('nav a').forEach(navLink => {
+            navLink.addEventListener('click', (e) => {
                 e.preventDefault();
-                const page = link.getAttribute('data-page');
+                const page = navLink.getAttribute('data-page');
                 this.loadPage(page);
-                
-                // Update active navigation
-                navLinks.forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
             });
         });
+        
+        // Global event delegator for dynamic elements
+        document.addEventListener('click', (e) => {
+            // Handle category tab clicks
+            if (e.target.classList.contains('category-tab') || e.target.parentElement.classList.contains('category-tab')) {
+                const tab = e.target.closest('.category-tab');
+                const category = tab.getAttribute('data-category');
+                this.switchCategory(category);
+            }
+            
+            // Handle report button clicks
+            if (e.target.hasAttribute('data-report') || e.target.parentElement.hasAttribute('data-report')) {
+                const button = e.target.closest('[data-report]');
+                const reportType = button.getAttribute('data-report');
+                this.generateReport(reportType);
+            }
+        });
     }
-
-    // Load page content
+    
     loadPage(page) {
-        this.currentPage = page;
         const mainContent = document.getElementById('main-content');
+        const navLinks = document.querySelectorAll('nav a');
         
-        // Clear previous content with animation
-        mainContent.classList.remove('animate__fadeIn');
-        void mainContent.offsetWidth; // Trigger reflow
-        mainContent.classList.add('animate__fadeIn');
-        
-        // Load template for the selected page
-        const template = document.getElementById(`${page}-template`);
-        mainContent.innerHTML = template.innerHTML;
-        
-        // Initialize the appropriate page
-        switch (page) {
-            case 'pos':
-                this.initPosPage();
-                break;
-            case 'inventory':
-                this.initInventoryPage();
-                break;
-            case 'reports':
-                this.initReportsPage();
-                break;
-            case 'settings':
-                this.initSettingsPage();
-                break;
-        }
-    }
-
-    // Initialize POS page
-    initPosPage() {
-        // Load menu items for the active category
-        this.loadMenuItems(this.activeCategoryTab);
-        
-        // Set up category tabs
-        const categoryTabs = document.querySelectorAll('.category-tab');
-        categoryTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                categoryTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                this.activeCategoryTab = tab.getAttribute('data-category');
-                this.loadMenuItems(this.activeCategoryTab);
-            });
+        // Update navigation
+        navLinks.forEach(link => {
+            if (link.getAttribute('data-page') === page) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
         });
         
-        // Set up order actions
-        document.getElementById('clear-order').addEventListener('click', () => this.clearOrder());
-        document.getElementById('process-payment').addEventListener('click', () => this.showPaymentModal());
-    }
-
-    // Load menu items for selected category
-    loadMenuItems(category) {
-        const menuItems = db.getMenuItems(category);
-        const menuContainer = document.querySelector('.menu-items');
-        menuContainer.innerHTML = '';
+        // Set current page
+        this.currentPage = page;
         
+        // Clear current content with animation
+        mainContent.classList.remove('animate__fadeIn');
+        mainContent.classList.add('animate__fadeOut');
+        
+        setTimeout(() => {
+            // Load new content
+            mainContent.innerHTML = '';
+            const template = document.getElementById(`${page}-template`);
+            if (template) {
+                mainContent.appendChild(document.importNode(template.content, true));
+                
+                // Initialize page specific content
+                switch (page) {
+                    case 'pos':
+                        this.initPOS();
+                        break;
+                    case 'inventory':
+                        this.initInventory();
+                        break;
+                    case 'reports':
+                        this.initReports();
+                        break;
+                    case 'settings':
+                        this.initSettings();
+                        break;
+                }
+                
+                // Animation for new content
+                mainContent.classList.remove('animate__fadeOut');
+                mainContent.classList.add('animate__fadeIn');
+            } else {
+                mainContent.innerHTML = '<div class="error-message">Page template not found!</div>';
+            }
+        }, 300); // Match with CSS transition time
+    }
+    
+    // POS Page Methods
+    initPOS() {
+        // Reset current order
+        this.currentOrder = { items: [], subtotal: 0, tax: 0, total: 0 };
+        this.updateOrderSummary();
+        
+        // Load menu items for default category
+        this.switchCategory(this.activeCategoryTab);
+        
+        // Set up POS event listeners
+        document.getElementById('clear-order').addEventListener('click', () => this.clearOrder());
+        document.getElementById('process-payment').addEventListener('click', () => this.openPaymentModal());
+    }
+    
+    switchCategory(category) {
+        // Update active tab
+        const tabs = document.querySelectorAll('.category-tab');
+        tabs.forEach(tab => {
+            if (tab.getAttribute('data-category') === category) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        this.activeCategoryTab = category;
+        
+        // Load menu items
+        const menuItems = db.getMenuItemsByCategory(category);
+        const menuContainer = document.querySelector('.menu-items');
+        
+        menuContainer.innerHTML = '';
         menuItems.forEach(item => {
-            const menuItem = document.createElement('div');
-            menuItem.className = 'menu-item ripple';
-            menuItem.innerHTML = `
-                <img src="images/menu/${item.image}" alt="${item.name}">
-                <div class="item-details">
+            const itemElement = document.createElement('div');
+            itemElement.className = 'menu-item ripple';
+            itemElement.setAttribute('data-id', item.id);
+            
+            // Format price with 2 decimal places
+            const formattedPrice = parseFloat(item.price).toFixed(2);
+            
+            itemElement.innerHTML = `
+                <div class="menu-item-image">
+                    <img src="images/menu/${item.image || 'placeholder.jpg'}" alt="${item.name}">
+                </div>
+                <div class="menu-item-details">
                     <h3>${item.name}</h3>
-                    <p class="price">$${item.price.toFixed(2)}</p>
+                    <p class="price">$${formattedPrice}</p>
                 </div>
             `;
-            menuItem.addEventListener('click', () => this.addToOrder(item));
-            menuContainer.appendChild(menuItem);
+            
+            itemElement.addEventListener('click', () => this.addItemToOrder(item));
+            menuContainer.appendChild(itemElement);
         });
     }
-
-    // Add item to current order
-    addToOrder(item) {
-        // Check if item already exists
-        const existingItem = this.currentOrder.items.find(i => i.id === item.id);
+    
+    addItemToOrder(item) {
+        // Check if item already exists in order
+        const existingItemIndex = this.currentOrder.items.findIndex(orderItem => orderItem.id === item.id);
         
-        if (existingItem) {
-            // Update quantity
-            existingItem.quantity += 1;
+        if (existingItemIndex !== -1) {
+            // Increase quantity if item already in order
+            this.currentOrder.items[existingItemIndex].quantity += 1;
+            this.currentOrder.items[existingItemIndex].total = 
+                this.currentOrder.items[existingItemIndex].quantity * this.currentOrder.items[existingItemIndex].price;
         } else {
-            // Add new item
+            // Add new item to order
             this.currentOrder.items.push({
                 id: item.id,
                 name: item.name,
                 price: item.price,
-                quantity: 1
+                quantity: 1,
+                total: item.price
             });
         }
         
-        // Update order display
         this.updateOrderDisplay();
+        this.updateOrderSummary();
         
         // Show notification
         toastr.success(`Added ${item.name} to order`);
     }
-
-    // Update order display
+    
     updateOrderDisplay() {
-        const orderItemsContainer = document.querySelector('.order-items');
-        orderItemsContainer.innerHTML = '';
+        const orderItems = document.querySelector('.order-items');
+        orderItems.innerHTML = '';
         
         if (this.currentOrder.items.length === 0) {
-            orderItemsContainer.innerHTML = '<p class="empty-order">No items in order</p>';
-            this.updateOrderSummary(0, 0, 0);
+            orderItems.innerHTML = '<div class="empty-order">No items in current order</div>';
             return;
         }
         
-        let subtotal = 0;
-        
-        // Add each item to the display
-        this.currentOrder.items.forEach(item => {
-            const itemTotal = item.price * item.quantity;
-            subtotal += itemTotal;
-            
-            const orderItem = document.createElement('div');
-            orderItem.className = 'order-item';
-            orderItem.innerHTML = `
-                <div class="item-info">
-                    <span class="name">${item.name}</span>
-                    <span class="price">$${item.price.toFixed(2)} × ${item.quantity}</span>
+        this.currentOrder.items.forEach((item, index) => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'order-item';
+            itemElement.innerHTML = `
+                <div class="order-item-details">
+                    <span class="order-item-name">${item.name}</span>
+                    <span class="order-item-price">$${parseFloat(item.price).toFixed(2)} × ${item.quantity}</span>
                 </div>
-                <div class="item-total">$${itemTotal.toFixed(2)}</div>
-                <div class="item-actions">
-                    <button class="btn-circle decrease-item" data-id="${item.id}">-</button>
-                    <button class="btn-circle remove-item" data-id="${item.id}"><i class="fas fa-trash"></i></button>
-                    <button class="btn-circle increase-item" data-id="${item.id}">+</button>
+                <div class="order-item-total">$${parseFloat(item.total).toFixed(2)}</div>
+                <div class="order-item-actions">
+                    <button class="btn-circle decrease-item" data-index="${index}">-</button>
+                    <button class="btn-circle increase-item" data-index="${index}">+</button>
+                    <button class="btn-circle remove-item" data-index="${index}">×</button>
                 </div>
             `;
-            orderItemsContainer.appendChild(orderItem);
+            orderItems.appendChild(itemElement);
         });
         
-        // Add event listeners for item actions
-        orderItemsContainer.querySelectorAll('.decrease-item').forEach(btn => {
-            btn.addEventListener('click', () => this.decreaseItemQuantity(parseInt(btn.getAttribute('data-id'))));
+        // Add event listeners for order item actions
+        document.querySelectorAll('.decrease-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const index = parseInt(e.target.getAttribute('data-index'));
+                this.decreaseItemQuantity(index);
+            });
         });
         
-        orderItemsContainer.querySelectorAll('.increase-item').forEach(btn => {
-            btn.addEventListener('click', () => this.increaseItemQuantity(parseInt(btn.getAttribute('data-id'))));
+        document.querySelectorAll('.increase-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const index = parseInt(e.target.getAttribute('data-index'));
+                this.increaseItemQuantity(index);
+            });
         });
         
-        orderItemsContainer.querySelectorAll('.remove-item').forEach(btn => {
-            btn.addEventListener('click', () => this.removeOrderItem(parseInt(btn.getAttribute('data-id'))));
+        document.querySelectorAll('.remove-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const index = parseInt(e.target.getAttribute('data-index'));
+                this.removeItemFromOrder(index);
+            });
         });
+    }
+    
+    decreaseItemQuantity(index) {
+        if (this.currentOrder.items[index].quantity > 1) {
+            this.currentOrder.items[index].quantity -= 1;
+            this.currentOrder.items[index].total = 
+                this.currentOrder.items[index].quantity * this.currentOrder.items[index].price;
+            this.updateOrderDisplay();
+            this.updateOrderSummary();
+        } else {
+            this.removeItemFromOrder(index);
+        }
+    }
+    
+    increaseItemQuantity(index) {
+        this.currentOrder.items[index].quantity += 1;
+        this.currentOrder.items[index].total = 
+            this.currentOrder.items[index].quantity * this.currentOrder.items[index].price;
+        this.updateOrderDisplay();
+        this.updateOrderSummary();
+    }
+    
+    removeItemFromOrder(index) {
+        const itemName = this.currentOrder.items[index].name;
+        this.currentOrder.items.splice(index, 1);
+        this.updateOrderDisplay();
+        this.updateOrderSummary();
+        toastr.info(`Removed ${itemName} from order`);
+    }
+    
+    updateOrderSummary() {
+        // Calculate subtotal
+        this.currentOrder.subtotal = this.currentOrder.items.reduce((sum, item) => sum + item.total, 0);
+        
+        // Get tax rate from settings
+        const settings = db.getSettings();
+        const taxRate = settings.taxRate || 10;
         
         // Calculate tax and total
-        const taxRate = db.getSettings().taxRate || 10;
-        const tax = subtotal * (taxRate / 100);
-        const total = subtotal + tax;
+        this.currentOrder.tax = this.currentOrder.subtotal * (taxRate / 100);
+        this.currentOrder.total = this.currentOrder.subtotal + this.currentOrder.tax;
         
-        // Update summary
-        this.updateOrderSummary(subtotal, tax, total);
-    }
-
-    // Update the order summary
-    updateOrderSummary(subtotal, tax, total) {
-        document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-        document.getElementById('tax').textContent = tax.toFixed(2);
-        document.getElementById('total').textContent = total.toFixed(2);
+        // Update UI
+        document.getElementById('subtotal').textContent = this.currentOrder.subtotal.toFixed(2);
+        document.getElementById('tax').textContent = this.currentOrder.tax.toFixed(2);
+        document.getElementById('total').textContent = this.currentOrder.total.toFixed(2);
         
-        // Update the current order object
-        this.currentOrder.subtotal = subtotal;
-        this.currentOrder.tax = tax;
-        this.currentOrder.total = total;
-        
-        // Disable/enable payment button
-        const processPaymentBtn = document.getElementById('process-payment');
-        if (this.currentOrder.items.length === 0) {
-            processPaymentBtn.disabled = true;
-            processPaymentBtn.classList.add('disabled');
+        // Enable/disable payment button
+        const paymentButton = document.getElementById('process-payment');
+        if (this.currentOrder.items.length > 0) {
+            paymentButton.removeAttribute('disabled');
         } else {
-            processPaymentBtn.disabled = false;
-            processPaymentBtn.classList.remove('disabled');
+            paymentButton.setAttribute('disabled', 'disabled');
         }
     }
-
-    // Decrease item quantity
-    decreaseItemQuantity(itemId) {
-        const item = this.currentOrder.items.find(i => i.id === itemId);
-        if (item && item.quantity > 1) {
-            item.quantity -= 1;
-            this.updateOrderDisplay();
-        } else if (item && item.quantity === 1) {
-            this.removeOrderItem(itemId);
-        }
-    }
-
-    // Increase item quantity
-    increaseItemQuantity(itemId) {
-        const item = this.currentOrder.items.find(i => i.id === itemId);
-        if (item) {
-            item.quantity += 1;
-            this.updateOrderDisplay();
-        }
-    }
-
-    // Remove item from order
-    removeOrderItem(itemId) {
-        this.currentOrder.items = this.currentOrder.items.filter(i => i.id !== itemId);
-        this.updateOrderDisplay();
-    }
-
-    // Clear entire order
+    
     clearOrder() {
         if (this.currentOrder.items.length === 0) return;
         
@@ -290,175 +310,174 @@ class CafeApp {
             text: 'Are you sure you want to clear the current order?',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Yes, clear it',
-            cancelButtonText: 'Cancel'
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, clear it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                this.currentOrder.items = [];
+                this.currentOrder = { items: [], subtotal: 0, tax: 0, total: 0 };
                 this.updateOrderDisplay();
+                this.updateOrderSummary();
                 toastr.info('Order has been cleared');
             }
         });
     }
-
-    // Show payment modal
-    showPaymentModal() {
+    
+    openPaymentModal() {
         if (this.currentOrder.items.length === 0) return;
         
         // Create modal backdrop
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
-        document.body.appendChild(modalBackdrop);
         
         // Create modal container
         const modalContainer = document.createElement('div');
-        modalContainer.className = 'modal-container';
+        modalContainer.className = 'modal';
         
-        // Add content from template
-        const modalTemplate = document.getElementById('payment-modal-template');
-        modalContainer.innerHTML = modalTemplate.innerHTML;
+        // Get payment modal content from template
+        const template = document.getElementById('payment-modal-template');
+        modalContainer.appendChild(document.importNode(template.content, true));
+        
+        // Add total amount to modal
+        modalContainer.querySelector('#payment-amount').textContent = this.currentOrder.total.toFixed(2);
+        
+        // Add to document
+        document.body.appendChild(modalBackdrop);
         document.body.appendChild(modalContainer);
         
-        // Set total amount
-        document.getElementById('payment-amount').textContent = this.currentOrder.total.toFixed(2);
+        // Add event listeners
+        modalContainer.querySelector('#cancel-payment').addEventListener('click', () => {
+            this.closePaymentModal(modalBackdrop, modalContainer);
+        });
         
-        // Setup payment method buttons
-        const paymentButtons = modalContainer.querySelectorAll('.btn-payment');
-        paymentButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const method = btn.getAttribute('data-method');
-                paymentButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                if (method === 'cash') {
-                    document.getElementById('cash-input').classList.remove('hidden');
-                    document.getElementById('cash-amount').focus();
-                } else {
-                    document.getElementById('cash-input').classList.add('hidden');
-                }
+        modalBackdrop.addEventListener('click', () => {
+            this.closePaymentModal(modalBackdrop, modalContainer);
+        });
+        
+        // Payment method buttons
+        modalContainer.querySelectorAll('.btn-payment').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const method = e.target.getAttribute('data-method');
+                this.selectPaymentMethod(method, modalContainer);
             });
         });
         
-        // Setup cash amount input
-        const cashInput = document.getElementById('cash-amount');
+        // Cash amount input
+        const cashInput = modalContainer.querySelector('#cash-amount');
         cashInput.addEventListener('input', () => {
             const cashAmount = parseFloat(cashInput.value) || 0;
             const change = cashAmount - this.currentOrder.total;
-            document.getElementById('change').textContent = change >= 0 ? change.toFixed(2) : '0.00';
+            modalContainer.querySelector('#change').textContent = change >= 0 ? change.toFixed(2) : '0.00';
         });
         
-        // Setup action buttons
-        document.getElementById('cancel-payment').addEventListener('click', () => {
-            this.closeModal(modalContainer, modalBackdrop);
+        // Complete payment button
+        modalContainer.querySelector('#complete-payment').addEventListener('click', () => {
+            this.completePayment(modalBackdrop, modalContainer);
         });
-        
-        document.getElementById('complete-payment').addEventListener('click', () => {
-            this.processOrder(modalContainer, modalBackdrop);
-        });
-        
-        // Close on backdrop click
-        modalBackdrop.addEventListener('click', () => {
-            this.closeModal(modalContainer, modalBackdrop);
-        });
-        
-        // Set modal active state
-        this.modalActive = true;
     }
-
-    // Close modal
-    closeModal(modalContainer, modalBackdrop) {
-        modalContainer.classList.add('animate__fadeOutUp');
-        modalBackdrop.classList.add('fade-out');
+    
+    selectPaymentMethod(method, modalContainer) {
+        // Highlight selected payment method
+        modalContainer.querySelectorAll('.btn-payment').forEach(btn => {
+            if (btn.getAttribute('data-method') === method) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
+        
+        // Show/hide cash input for cash payments
+        if (method === 'cash') {
+            modalContainer.querySelector('#cash-input').classList.remove('hidden');
+            modalContainer.querySelector('#cash-amount').focus();
+        } else {
+            modalContainer.querySelector('#cash-input').classList.add('hidden');
+        }
+        
+        // Store selected method
+        this.selectedPaymentMethod = method;
+    }
+    
+    closePaymentModal(backdrop, modal) {
+        modal.classList.add('animate__fadeOutUp');
+        backdrop.classList.add('fade-out');
         
         setTimeout(() => {
-            document.body.removeChild(modalContainer);
-            document.body.removeChild(modalBackdrop);
-            this.modalActive = false;
+            document.body.removeChild(backdrop);
+            document.body.removeChild(modal);
         }, 300);
     }
-
-    // Process order and complete payment
-    processOrder(modalContainer, modalBackdrop) {
-        const activeMethod = modalContainer.querySelector('.btn-payment.active');
-        if (!activeMethod) {
+    
+    completePayment(backdrop, modal) {
+        // Validate payment
+        if (!this.selectedPaymentMethod) {
             toastr.error('Please select a payment method');
             return;
         }
         
-        const paymentMethod = activeMethod.getAttribute('data-method');
-        
-        // For cash payments, validate amount
-        if (paymentMethod === 'cash') {
-            const cashAmount = parseFloat(document.getElementById('cash-amount').value) || 0;
+        if (this.selectedPaymentMethod === 'cash') {
+            const cashAmount = parseFloat(modal.querySelector('#cash-amount').value) || 0;
             if (cashAmount < this.currentOrder.total) {
                 toastr.error('Insufficient cash amount');
                 return;
             }
         }
         
-        // Create order in database
-        const orderData = {
-            items: [...this.currentOrder.items],
+        // Create order record
+        const order = {
+            items: this.currentOrder.items,
             subtotal: this.currentOrder.subtotal,
             tax: this.currentOrder.tax,
             total: this.currentOrder.total,
-            paymentMethod: paymentMethod
+            paymentMethod: this.selectedPaymentMethod,
+            date: new Date().toISOString()
         };
         
-        const order = db.createOrder(orderData);
-        
-        // Close modal
-        this.closeModal(modalContainer, modalBackdrop);
+        // Save order
+        db.addOrder(order);
         
         // Show success message
         Swal.fire({
+            title: 'Payment Successful',
+            text: 'Order has been processed successfully!',
             icon: 'success',
-            title: 'Order Completed',
-            text: `Order #${order.id} has been processed successfully`,
-            confirmButtonText: 'Print Receipt',
-            showCancelButton: true,
-            cancelButtonText: 'Close'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                this.printReceipt(order);
-            }
-            // Clear the order
-            this.currentOrder.items = [];
-            this.updateOrderDisplay();
-        });
-    }
-
-    // Print receipt (simulated)
-    printReceipt(order) {
-        console.log('Printing receipt for order:', order);
-        toastr.info('Receipt sent to printer');
-    }
-
-    // Initialize inventory page
-    initInventoryPage() {
-        this.loadInventory();
-        
-        // Setup add item button
-        document.getElementById('add-item').addEventListener('click', () => {
-            this.showAddItemModal();
+            timer: 2000,
+            showConfirmButton: false
         });
         
-        // Setup update stock button
-        document.getElementById('update-stock').addEventListener('click', () => {
-            this.showUpdateStockModal();
-        });
+        // Close modal
+        this.closePaymentModal(backdrop, modal);
+        
+        // Reset order
+        this.currentOrder = { items: [], subtotal: 0, tax: 0, total: 0 };
+        this.updateOrderDisplay();
+        this.updateOrderSummary();
     }
-
-    // Load inventory items
-    loadInventory() {
+    
+    // Inventory Page Methods
+    initInventory() {
+        this.displayInventory();
+        
+        // Set up inventory event listeners
+        document.getElementById('add-item').addEventListener('click', () => this.showAddItemModal());
+        document.getElementById('update-stock').addEventListener('click', () => this.showUpdateStockModal());
+    }
+    
+    displayInventory() {
         const inventory = db.getInventory();
         const inventoryList = document.getElementById('inventory-list');
+        
         inventoryList.innerHTML = '';
+        
+        if (inventory.length === 0) {
+            inventoryList.innerHTML = '<tr><td colspan="5" class="empty-table">No inventory items found</td></tr>';
+            return;
+        }
         
         inventory.forEach(item => {
             const row = document.createElement('tr');
             
-            // Highlight low stock items
+            // Add warning class if stock is below reorder level
             if (item.stock <= item.reorderLevel) {
                 row.classList.add('low-stock');
             }
@@ -468,407 +487,771 @@ class CafeApp {
                 <td>${item.category}</td>
                 <td>${item.stock} ${item.unit}</td>
                 <td>${item.reorderLevel} ${item.unit}</td>
-                <td>
-                    <button class="btn-icon edit-item" data-id="${item.id}"><i class="fas fa-edit"></i></button>
-                    <button class="btn-icon update-stock-item" data-id="${item.id}"><i class="fas fa-plus-minus"></i></button>
+                <td class="actions">
+                    <button class="btn-circle edit-item" data-id="${item.id}"><i class="fas fa-edit"></i></button>
+                    <button class="btn-circle delete-item" data-id="${item.id}"><i class="fas fa-trash"></i></button>
                 </td>
             `;
             inventoryList.appendChild(row);
         });
         
-        // Add event listeners for item actions
-        inventoryList.querySelectorAll('.edit-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const itemId = parseInt(btn.getAttribute('data-id'));
-                this.editInventoryItem(itemId);
+        // Add event listeners for inventory actions
+        document.querySelectorAll('.edit-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const id = parseInt(e.target.closest('.edit-item').getAttribute('data-id'));
+                this.showEditItemModal(id);
             });
         });
         
-        inventoryList.querySelectorAll('.update-stock-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const itemId = parseInt(btn.getAttribute('data-id'));
-                this.updateStockItem(itemId);
+        document.querySelectorAll('.delete-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const id = parseInt(e.target.closest('.delete-item').getAttribute('data-id'));
+                this.confirmDeleteItem(id);
             });
         });
     }
-
-    // Show add item modal (simulated)
+    
     showAddItemModal() {
         Swal.fire({
             title: 'Add Inventory Item',
-            text: 'This feature is not implemented in the demo',
-            icon: 'info'
-        });
-    }
-
-    // Show update stock modal (simulated)
-    showUpdateStockModal() {
-        Swal.fire({
-            title: 'Update Stock Levels',
-            text: 'This feature is not implemented in the demo',
-            icon: 'info'
-        });
-    }
-
-    // Edit inventory item (simulated)
-    editInventoryItem(itemId) {
-        const item = db.getInventory().find(i => i.id === itemId);
-        
-        Swal.fire({
-            title: `Edit ${item.name}`,
-            text: 'This feature is not fully implemented in the demo',
-            icon: 'info'
-        });
-    }
-
-    // Update stock of specific item (simulated)
-    updateStockItem(itemId) {
-        const item = db.getInventory().find(i => i.id === itemId);
-        
-        Swal.fire({
-            title: `Update ${item.name} Stock`,
-            input: 'number',
-            inputLabel: 'New stock level',
-            inputValue: item.stock,
+            html: `
+                <div class="form-control">
+                    <label for="item-name">Item Name</label>
+                    <input type="text" id="item-name" class="swal2-input">
+                </div>
+                <div class="form-control">
+                    <label for="item-category">Category</label>
+                    <select id="item-category" class="swal2-input">
+                        <option value="ingredients">Ingredients</option>
+                        <option value="supplies">Supplies</option>
+                        <option value="equipment">Equipment</option>
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label for="item-stock">Initial Stock</label>
+                    <input type="number" id="item-stock" class="swal2-input" min="0" step="0.01">
+                </div>
+                <div class="form-control">
+                    <label for="item-unit">Unit</label>
+                    <input type="text" id="item-unit" class="swal2-input" placeholder="kg, liters, boxes, etc.">
+                </div>
+                <div class="form-control">
+                    <label for="item-reorder">Reorder Level</label>
+                    <input type="number" id="item-reorder" class="swal2-input" min="0" step="0.01">
+                </div>
+            `,
             showCancelButton: true,
-            confirmButtonText: 'Update',
-            inputValidator: (value) => {
-                if (!value || value < 0) {
-                    return 'Please enter a valid stock level';
+            confirmButtonText: 'Add Item',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                const name = document.getElementById('item-name').value;
+                const category = document.getElementById('item-category').value;
+                const stock = parseFloat(document.getElementById('item-stock').value);
+                const unit = document.getElementById('item-unit').value;
+                const reorderLevel = parseFloat(document.getElementById('item-reorder').value);
+                
+                if (!name || isNaN(stock) || !unit || isNaN(reorderLevel)) {
+                    Swal.showValidationMessage('Please fill all fields correctly');
+                    return false;
                 }
+                
+                return { name, category, stock, unit, reorderLevel };
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                const newStock = parseInt(result.value);
-                db.updateInventoryItem(itemId, { stock: newStock });
-                this.loadInventory();
-                toastr.success(`Updated ${item.name} stock to ${newStock} ${item.unit}`);
+                const inventory = db.getInventory();
+                const newItem = {
+                    id: Date.now(),
+                    ...result.value
+                };
+                
+                inventory.push(newItem);
+                db.saveInventory(inventory);
+                
+                this.displayInventory();
+                toastr.success(`${newItem.name} added to inventory`);
             }
         });
     }
-
-    // Initialize reports page
-    initReportsPage() {
-        // Setup report buttons
-        const reportButtons = document.querySelectorAll('.report-options button');
-        reportButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                reportButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                const reportType = btn.getAttribute('data-report');
-                this.loadReport(reportType);
-            });
-        });
+    
+    showEditItemModal(itemId) {
+        const inventory = db.getInventory();
+        const item = inventory.find(i => i.id === itemId);
         
-        // Load default report
-        this.loadReport('daily');
-    }
-
-    // Load report data and generate chart
-    loadReport(reportType) {
-        // Demo data for charts
-        let chartData;
-        let chartTitle;
-        
-        const reportDetails = document.getElementById('report-details');
-        
-        switch (reportType) {
-            case 'daily':
-                chartTitle = 'Daily Sales Report';
-                chartData = {
-                    labels: ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM'],
-                    datasets: [{
-                        label: 'Sales ($)',
-                        data: [42, 85, 101, 120, 152, 110, 90, 65, 72],
-                        backgroundColor: 'rgba(138, 43, 226, 0.2)',
-                        borderColor: 'rgba(138, 43, 226, 1)',
-                        borderWidth: 2,
-                        tension: 0.3
-                    }]
-                };
-                reportDetails.innerHTML = `
-                    <h3>Daily Summary</h3>
-                    <div class="report-summary">
-                        <div class="summary-item">
-                            <span class="label">Total Sales</span>
-                            <span class="value">$837.00</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Orders</span>
-                            <span class="value">42</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Avg Order Value</span>
-                            <span class="value">$19.93</span>
-                        </div>
-                    </div>
-                `;
-                break;
-                
-            case 'weekly':
-                chartTitle = 'Weekly Sales Report';
-                chartData = {
-                    labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-                    datasets: [{
-                        label: 'Sales ($)',
-                        data: [720, 850, 795, 810, 920, 1100, 980],
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 2,
-                        tension: 0.3
-                    }]
-                };
-                reportDetails.innerHTML = `
-                    <h3>Weekly Summary</h3>
-                    <div class="report-summary">
-                        <div class="summary-item">
-                            <span class="label">Total Sales</span>
-                            <span class="value">$6,175.00</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Orders</span>
-                            <span class="value">315</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Busiest Day</span>
-                            <span class="value">Saturday</span>
-                        </div>
-                    </div>
-                `;
-                break;
-                
-            case 'monthly':
-                chartTitle = 'Monthly Sales Report';
-                chartData = {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                    datasets: [{
-                        label: 'Sales ($)',
-                        data: [18500, 17200, 21300, 19800, 22500, 25100, 27800, 26900, 24200, 21800, 23500, 28900],
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 2,
-                        tension: 0.3
-                    }]
-                };
-                reportDetails.innerHTML = `
-                    <h3>Yearly Summary</h3>
-                    <div class="report-summary">
-                        <div class="summary-item">
-                            <span class="label">Total Sales</span>
-                            <span class="value">$277,600.00</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Best Month</span>
-                            <span class="value">December</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Growth</span>
-                            <span class="value">+12.4%</span>
-                        </div>
-                    </div>
-                `;
-                break;
-                
-            case 'popular':
-                chartTitle = 'Popular Items';
-                chartData = {
-                    labels: ['Cappuccino', 'Latte', 'Espresso', 'Mocha', 'Croissant', 'Muffin', 'Sandwich'],
-                    datasets: [{
-                        label: 'Units Sold',
-                        data: [320, 280, 220, 190, 180, 150, 120],
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.5)',
-                            'rgba(54, 162, 235, 0.5)',
-                            'rgba(255, 206, 86, 0.5)',
-                            'rgba(75, 192, 192, 0.5)',
-                            'rgba(153, 102, 255, 0.5)',
-                            'rgba(255, 159, 64, 0.5)',
-                            'rgba(201, 203, 207, 0.5)'
-                        ],
-                        borderWidth: 1
-                    }]
-                };
-                reportDetails.innerHTML = `
-                    <h3>Most Popular Items</h3>
-                    <div class="report-summary">
-                        <div class="summary-item">
-                            <span class="label">Top Seller</span>
-                            <span class="value">Cappuccino</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Top Category</span>
-                            <span class="value">Coffee</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Trending Item</span>
-                            <span class="value">Mocha (+15%)</span>
-                        </div>
-                    </div>
-                `;
-                break;
+        if (!item) {
+            toastr.error('Item not found');
+            return;
         }
         
-        // Create or update chart
-        this.renderChart(chartData, chartTitle, reportType === 'popular' ? 'bar' : 'line');
+        Swal.fire({
+            title: 'Edit Inventory Item',
+            html: `
+                <div class="form-control">
+                    <label for="edit-name">Item Name</label>
+                    <input type="text" id="edit-name" class="swal2-input" value="${item.name}">
+                </div>
+                <div class="form-control">
+                    <label for="edit-category">Category</label>
+                    <select id="edit-category" class="swal2-input">
+                        <option value="ingredients" ${item.category === 'ingredients' ? 'selected' : ''}>Ingredients</option>
+                        <option value="supplies" ${item.category === 'supplies' ? 'selected' : ''}>Supplies</option>
+                        <option value="equipment" ${item.category === 'equipment' ? 'selected' : ''}>Equipment</option>
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label for="edit-stock">Current Stock</label>
+                    <input type="number" id="edit-stock" class="swal2-input" min="0" step="0.01" value="${item.stock}">
+                </div>
+                <div class="form-control">
+                    <label for="edit-unit">Unit</label>
+                    <input type="text" id="edit-unit" class="swal2-input" value="${item.unit}">
+                </div>
+                <div class="form-control">
+                    <label for="edit-reorder">Reorder Level</label>
+                    <input type="number" id="edit-reorder" class="swal2-input" min="0" step="0.01" value="${item.reorderLevel}">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Update Item',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                const name = document.getElementById('edit-name').value;
+                const category = document.getElementById('edit-category').value;
+                const stock = parseFloat(document.getElementById('edit-stock').value);
+                const unit = document.getElementById('edit-unit').value;
+                const reorderLevel = parseFloat(document.getElementById('edit-reorder').value);
+                
+                if (!name || isNaN(stock) || !unit || isNaN(reorderLevel)) {
+                    Swal.showValidationMessage('Please fill all fields correctly');
+                    return false;
+                }
+                
+                return { name, category, stock, unit, reorderLevel };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                db.updateInventoryItem(itemId, result.value);
+                this.displayInventory();
+                toastr.success(`${result.value.name} updated successfully`);
+            }
+        });
     }
-
-    // Render chart using Chart.js
-    renderChart(data, title, type = 'line') {
-        const chartContainer = document.getElementById('report-chart');
+    
+    confirmDeleteItem(itemId) {
+        const inventory = db.getInventory();
+        const item = inventory.find(i => i.id === itemId);
         
-        // Destroy previous chart if exists
+        if (!item) {
+            toastr.error('Item not found');
+            return;
+        }
+        
+        Swal.fire({
+            title: 'Delete Item',
+            text: `Are you sure you want to delete ${item.name}?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const updatedInventory = inventory.filter(i => i.id !== itemId);
+                db.saveInventory(updatedInventory);
+                this.displayInventory();
+                toastr.success(`${item.name} has been deleted`);
+            }
+        });
+    }
+    
+    showUpdateStockModal() {
+        // Create an array of options for the select element
+        const inventory = db.getInventory();
+        let optionsHtml = '';
+        
+        inventory.forEach(item => {
+            optionsHtml += `<option value="${item.id}">${item.name} (Current: ${item.stock} ${item.unit})</option>`;
+        });
+        
+        Swal.fire({
+            title: 'Update Stock',
+            html: `
+                <div class="form-control">
+                    <label for="stock-item">Select Item</label>
+                    <select id="stock-item" class="swal2-input">
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label for="stock-adjustment">Adjustment</label>
+                    <div class="input-group">
+                        <select id="stock-adjustment-type" class="swal2-input">
+                            <option value="add">Add</option>
+                            <option value="subtract">Subtract</option>
+                            <option value="set">Set to</option>
+                        </select>
+                        <input type="number" id="stock-adjustment-value" class="swal2-input" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="form-control">
+                    <label for="stock-notes">Notes (Optional)</label>
+                    <textarea id="stock-notes" class="swal2-textarea" placeholder="Reason for adjustment"></textarea>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Update Stock',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                const itemId = parseInt(document.getElementById('stock-item').value);
+                const adjustmentType = document.getElementById('stock-adjustment-type').value;
+                const adjustmentValue = parseFloat(document.getElementById('stock-adjustment-value').value);
+                const notes = document.getElementById('stock-notes').value;
+                
+                if (isNaN(adjustmentValue) || adjustmentValue < 0) {
+                    Swal.showValidationMessage('Please enter a valid adjustment value');
+                    return false;
+                }
+                
+                return { itemId, adjustmentType, adjustmentValue, notes };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const { itemId, adjustmentType, adjustmentValue, notes } = result.value;
+                const inventory = db.getInventory();
+                const item = inventory.find(i => i.id === itemId);
+                
+                let newStock;
+                switch (adjustmentType) {
+                    case 'add':
+                        newStock = item.stock + adjustmentValue;
+                        break;
+                    case 'subtract':
+                        newStock = Math.max(0, item.stock - adjustmentValue);
+                        break;
+                    case 'set':
+                        newStock = adjustmentValue;
+                        break;
+                }
+                
+                db.updateInventoryItem(itemId, { stock: newStock });
+                this.displayInventory();
+                toastr.success(`Stock updated for ${item.name}`);
+            }
+        });
+    }
+    
+    // Reports Page Methods
+    initReports() {
+        // Default to showing daily sales report
+        this.generateReport('daily');
+    }
+    
+    generateReport(reportType) {
+        const reportChartContainer = document.getElementById('report-chart');
+        const reportDetails = document.getElementById('report-details');
+        const orders = db.getOrders();
+        
+        // Clear previous chart if exists
         if (this.currentChart) {
             this.currentChart.destroy();
         }
         
-        // Create canvas if it doesn't exist
-        if (!document.getElementById('report-canvas')) {
-            const canvas = document.createElement('canvas');
-            canvas.id = 'report-canvas';
-            chartContainer.innerHTML = '';
-            chartContainer.appendChild(canvas);
+        // Make all report buttons inactive
+        document.querySelectorAll('[data-report]').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Make selected report button active
+        document.querySelector(`[data-report="${reportType}"]`).classList.add('active');
+        
+        // If no orders, show message
+        if (orders.length === 0) {
+            reportChartContainer.innerHTML = '<div class="empty-data">No order data available</div>';
+            reportDetails.innerHTML = '';
+            return;
+        }
+        
+        // Process data based on report type
+        let chartData;
+        let detailsHtml;
+        
+        switch (reportType) {
+            case 'daily':
+                chartData = this.generateDailyReportData(orders);
+                detailsHtml = this.generateDailyReportDetails(chartData);
+                break;
+            case 'weekly':
+                chartData = this.generateWeeklyReportData(orders);
+                detailsHtml = this.generateWeeklyReportDetails(chartData);
+                break;
+            case 'monthly':
+                chartData = this.generateMonthlyReportData(orders);
+                detailsHtml = this.generateMonthlyReportDetails(chartData);
+                break;
+            case 'popular':
+                chartData = this.generatePopularItemsData(orders);
+                detailsHtml = this.generatePopularItemsDetails(chartData);
+                break;
         }
         
         // Create chart
-        const ctx = document.getElementById('report-canvas').getContext('2d');
+        reportChartContainer.innerHTML = '<canvas id="chart"></canvas>';
+        const ctx = document.getElementById('chart').getContext('2d');
+        
         this.currentChart = new Chart(ctx, {
-            type: type,
-            data: data,
+            type: reportType === 'popular' ? 'pie' : 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: reportType === 'popular' ? 'Items Sold' : 'Sales',
+                    data: chartData.values,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)',
+                        'rgba(255, 159, 64, 0.7)',
+                        'rgba(199, 199, 199, 0.7)',
+                        'rgba(83, 102, 255, 0.7)',
+                        'rgba(40, 159, 64, 0.7)',
+                        'rgba(210, 199, 199, 0.7)',
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(159, 159, 159, 1)',
+                        'rgba(83, 102, 255, 1)',
+                        'rgba(40, 159, 64, 1)',
+                        'rgba(210, 199, 199, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
-                    title: {
-                        display: true,
-                        text: title,
-                        font: {
-                            size: 16
-                        }
-                    },
                     legend: {
-                        position: 'top',
+                        display: reportType === 'popular',
+                        position: 'right'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (reportType === 'popular') {
+                                    return ` ${context.label}: ${context.raw} items`;
+                                } else {
+                                    return ` $${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
                     }
                 },
-                scales: {
+                scales: reportType === 'popular' ? undefined : {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
                     }
                 }
             }
         });
+        
+        // Update details
+        reportDetails.innerHTML = detailsHtml;
     }
-
-    // Initialize settings page
-    initSettingsPage() {
+    
+    generateDailyReportData(orders) {
+        // Get today's date
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Get hours for today
+        const hours = [];
+        for (let i = 0; i < 24; i++) {
+            hours.push(i);
+        }
+        
+        // Initialize sales data
+        const salesData = new Array(24).fill(0);
+        
+        // Filter orders for today and populate sales data
+        orders.forEach(order => {
+            const orderDate = new Date(order.date);
+            const orderDay = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
+            
+            if (orderDay.getTime() === today.getTime()) {
+                const hour = orderDate.getHours();
+                salesData[hour] += order.total;
+            }
+        });
+        
+        // Format hour labels
+        const hourLabels = hours.map(hour => {
+            const ampm = hour < 12 ? 'AM' : 'PM';
+            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+            return `${displayHour} ${ampm}`;
+        });
+        
+        return {
+            labels: hourLabels,
+            values: salesData
+        };
+    }
+    
+    generateDailyReportDetails(chartData) {
+        const totalSales = chartData.values.reduce((total, amount) => total + amount, 0);
+        const peakHourIndex = chartData.values.indexOf(Math.max(...chartData.values));
+        const peakHour = chartData.labels[peakHourIndex];
+        
+        return `
+            <div class="report-summary">
+                <div class="summary-item">
+                    <h3>Total Sales Today</h3>
+                    <p class="highlight">$${totalSales.toFixed(2)}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Peak Hour</h3>
+                    <p class="highlight">${peakHour}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Peak Hour Sales</h3>
+                    <p class="highlight">$${chartData.values[peakHourIndex].toFixed(2)}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    generateWeeklyReportData(orders) {
+        // Get start of current week (Sunday)
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        // Day names
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        // Initialize sales data
+        const salesData = new Array(7).fill(0);
+        
+        // Filter orders for this week and populate sales data
+        orders.forEach(order => {
+            const orderDate = new Date(order.date);
+            
+            if (orderDate.getTime() >= startOfWeek.getTime()) {
+                const dayOfWeek = orderDate.getDay();
+                salesData[dayOfWeek] += order.total;
+            }
+        });
+        
+        return {
+            labels: dayNames,
+            values: salesData
+        };
+    }
+    
+    generateWeeklyReportDetails(chartData) {
+        const totalSales = chartData.values.reduce((total, amount) => total + amount, 0);
+        const peakDayIndex = chartData.values.indexOf(Math.max(...chartData.values));
+        const peakDay = chartData.labels[peakDayIndex];
+        
+        return `
+            <div class="report-summary">
+                <div class="summary-item">
+                    <h3>Weekly Sales</h3>
+                    <p class="highlight">$${totalSales.toFixed(2)}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Peak Day</h3>
+                    <p class="highlight">${peakDay}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Peak Day Sales</h3>
+                    <p class="highlight">$${chartData.values[peakDayIndex].toFixed(2)}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Daily Average</h3>
+                    <p class="highlight">$${(totalSales / 7).toFixed(2)}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    generateMonthlyReportData(orders) {
+        // Get current month and year
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        // Get number of days in the month
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        // Day labels
+        const dayLabels = [];
+        for (let i = 1; i <= daysInMonth; i++) {
+            dayLabels.push(`${i}`);
+        }
+        
+        // Initialize sales data
+        const salesData = new Array(daysInMonth).fill(0);
+        
+        // Filter orders for this month and populate sales data
+        orders.forEach(order => {
+            const orderDate = new Date(order.date);
+            
+            if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+                const dayOfMonth = orderDate.getDate() - 1; // Array is 0-indexed
+                salesData[dayOfMonth] += order.total;
+            }
+        });
+        
+        return {
+            labels: dayLabels,
+            values: salesData
+        };
+    }
+    
+    generateMonthlyReportDetails(chartData) {
+        const totalSales = chartData.values.reduce((total, amount) => total + amount, 0);
+        const peakDayIndex = chartData.values.indexOf(Math.max(...chartData.values));
+        const peakDay = chartData.labels[peakDayIndex];
+        
+        // Get month name
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const currentMonth = new Date().getMonth();
+        
+        return `
+            <div class="report-summary">
+                <div class="summary-item">
+                    <h3>${monthNames[currentMonth]} Sales</h3>
+                    <p class="highlight">$${totalSales.toFixed(2)}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Peak Day</h3>
+                    <p class="highlight">${monthNames[currentMonth]} ${peakDay}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Peak Day Sales</h3>
+                    <p class="highlight">$${chartData.values[peakDayIndex].toFixed(2)}</p>
+                </div>
+                <div class="summary-item">
+                    <h3>Daily Average</h3>
+                    <p class="highlight">$${(totalSales / chartData.labels.length).toFixed(2)}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    generatePopularItemsData(orders) {
+        // Item sales counter
+        const itemSales = {};
+        
+        // Count item quantities across all orders
+        orders.forEach(order => {
+            order.items.forEach(item => {
+                if (itemSales[item.name]) {
+                    itemSales[item.name] += item.quantity;
+                } else {
+                    itemSales[item.name] = item.quantity;
+                }
+            });
+        });
+        
+        // Convert to arrays for sorting
+        const items = Object.keys(itemSales);
+        const quantities = Object.values(itemSales);
+        
+        // Sort by quantity (descending)
+        const sorted = items.map((item, i) => ({ name: item, quantity: quantities[i] }))
+                           .sort((a, b) => b.quantity - a.quantity)
+                           .slice(0, 10); // Top 10 items
+        
+        return {
+            labels: sorted.map(item => item.name),
+            values: sorted.map(item => item.quantity)
+        };
+    }
+    
+    generatePopularItemsDetails(chartData) {
+        const totalItems = chartData.values.reduce((total, quantity) => total + quantity, 0);
+        
+        // Create top items list
+        let topItemsHtml = '';
+        for (let i = 0; i < chartData.labels.length; i++) {
+            const percentage = ((chartData.values[i] / totalItems) * 100).toFixed(1);
+            topItemsHtml += `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${chartData.labels[i]}</td>
+                    <td>${chartData.values[i]}</td>
+                    <td>${percentage}%</td>
+                </tr>
+            `;
+        }
+        
+        return `
+            <div class="report-summary">
+                <div class="summary-item">
+                    <h3>Total Items Sold</h3>
+                    <p class="highlight">${totalItems}</p>
+                </div>
+                <div class="popular-items-table">
+                    <h3>Top Selling Items</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                                <th>% of Sales</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${topItemsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Settings Page Methods
+    initSettings() {
         const settings = db.getSettings();
         
-        // Populate form with current settings
-        document.getElementById('cafe-name').value = settings.cafeName;
-        document.getElementById('tax-rate').value = settings.taxRate;
+        // Populate settings form
+        document.getElementById('cafe-name').value = settings.cafeName || 'Shimmer Cafe';
+        document.getElementById('tax-rate').value = settings.taxRate || 10;
         
-        // Setup form submission
+        // Set up settings event listeners
         document.getElementById('settings-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.saveSettings();
         });
         
-        // Setup backup/restore buttons
         document.getElementById('backup-data').addEventListener('click', () => this.backupData());
         document.getElementById('restore-data').addEventListener('click', () => this.restoreData());
     }
-
-    // Save settings
+    
     saveSettings() {
-        const cafeName = document.getElementById('cafe-name').value;
+        const cafeName = document.getElementById('cafe-name').value.trim();
         const taxRate = parseFloat(document.getElementById('tax-rate').value);
         
-        if (!cafeName || isNaN(taxRate)) {
-            toastr.error('Please fill in all fields correctly');
+        // Validate inputs
+        if (!cafeName) {
+            toastr.error('Cafe name cannot be empty');
             return;
         }
         
-        const updatedSettings = db.updateSettings({
-            cafeName: cafeName,
-            taxRate: taxRate,
-            lastUpdated: new Date().toISOString()
-        });
+        if (isNaN(taxRate) || taxRate < 0) {
+            toastr.error('Please enter a valid tax rate');
+            return;
+        }
+        
+        // Save settings
+        const settings = db.getSettings();
+        settings.cafeName = cafeName;
+        settings.taxRate = taxRate;
+        db.saveSettings(settings);
+        
+        // Apply settings
+        this.applySettings();
         
         toastr.success('Settings saved successfully');
     }
-
-    // Backup data (simulated)
+    
     backupData() {
-        const backup = db.generateBackup();
-        const backupStr = JSON.stringify(backup);
+        // Create backup
+        const backup = db.createBackup();
         
-        // In a real app, this would save to a file or cloud storage
-        // For demo, we'll simulate a download
-        const blob = new Blob([backupStr], { type: 'application/json' });
+        // Convert to JSON string
+        const backupJson = JSON.stringify(backup, null, 2);
+        
+        // Create download link
+        const blob = new Blob([backupJson], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
         const a = document.createElement('a');
+        
         a.href = url;
-        a.download = `shimmer-cafe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `shimmer_cafe_backup_${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // Clean up
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
         
         toastr.success('Backup created successfully');
     }
-
-    // Restore data (simulated)
+    
     restoreData() {
-        Swal.fire({
-            title: 'Restore Data',
-            text: 'This would normally allow you to upload a backup file. For this demo, we\'ll simulate a restore.',
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: 'Simulate Restore',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Simulate a restore by using current data
-                const backup = db.generateBackup();
-                db.restoreFromBackup(backup);
-                
-                toastr.success('Data restored successfully');
-                
-                // Reload current page to reflect changes
-                this.loadPage(this.currentPage);
-            }
+        // Create file input element
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'application/json';
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const backupData = JSON.parse(event.target.result);
+                    
+                    // Confirm restore
+                    Swal.fire({
+                        title: 'Restore Data',
+                        text: `Are you sure you want to restore data from ${new Date(backupData.timestamp).toLocaleString()}? This will overwrite all current data.`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, restore it!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            const success = db.restoreBackup(backupData);
+                            
+                            if (success) {
+                                toastr.success('Data restored successfully');
+                                // Reload page to apply changes
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1500);
+                            } else {
+                                toastr.error('Failed to restore data');
+                            }
+                        }
+                    });
+                } catch (error) {
+                    toastr.error('Invalid backup file');
+                    console.error(error);
+                }
+            };
+            
+            reader.readAsText(file);
         });
-    }
-
-    // Register global event listeners
-    setupEventListeners() {
-        // Add ripple effect to buttons
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('ripple') || e.target.closest('.ripple')) {
-                const button = e.target.classList.contains('ripple') ? e.target : e.target.closest('.ripple');
-                const ripple = document.createElement('span');
-                ripple.classList.add('ripple-effect');
-                
-                const rect = button.getBoundingClientRect();
-                const size = Math.max(rect.width, rect.height);
-                
-                ripple.style.width = ripple.style.height = `${size}px`;
-                ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
-                ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
-                
-                button.appendChild(ripple);
-                
-                setTimeout(() => {
-                    ripple.remove();
-                }, 600);
-            }
-        });
+        
+        // Trigger file selection
+        fileInput.click();
     }
 }
 
-// Initialize application when DOM is loaded
+// Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new CafeApp();
-    app.init();
-    window.cafeApp = app; // Make available globally for debugging
+    window.app = new ShimmerCafeApp();
 });

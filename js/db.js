@@ -1,168 +1,228 @@
 /**
- * Database handler for Shimmer Cafe
- * Manages all data operations and storage
+ * Database management module for Shimmer Cafe
+ * Handles local storage operations and data management
  */
-
-class CafeDatabase {
+class ShimmerDB {
     constructor() {
-        this.settings = null;
-        this.menuItems = null;
-        this.inventory = null;
-        this.orders = null;
-        this.initialized = false;
+        this.storagePrefix = 'shimmer_cafe_';
+        this.inventoryKey = this.storagePrefix + 'inventory';
+        this.ordersKey = this.storagePrefix + 'orders';
+        this.menuKey = this.storagePrefix + 'menu';
+        this.settingsKey = this.storagePrefix + 'settings';
+        
+        // Initialize default data if needed
+        this.initializeData();
     }
 
-    // Initialize database by loading all data files
-    async init() {
-        try {
-            // Load all data in parallel
-            const [settings, menuItems, inventory, orders] = await Promise.all([
-                this.fetchData('data/settings.json'),
-                this.fetchData('data/menuItems.json'),
-                this.fetchData('data/inventory.json'),
-                this.fetchData('data/orders.json')
-            ]);
+    /**
+     * Initialize default data if storage is empty
+     */
+    async initializeData() {
+        // Initialize inventory data if not present
+        if (!localStorage.getItem(this.inventoryKey)) {
+            try {
+                const response = await fetch('data/inventory.json');
+                const inventoryData = await response.json();
+                this.saveInventory(inventoryData);
+            } catch (error) {
+                console.error('Failed to load inventory data:', error);
+                // Fallback to empty inventory
+                this.saveInventory([]);
+            }
+        }
 
-            this.settings = settings;
-            this.menuItems = menuItems;
-            this.inventory = inventory;
-            this.orders = orders;
-            this.initialized = true;
+        // Initialize settings with defaults if not present
+        if (!localStorage.getItem(this.settingsKey)) {
+            const defaultSettings = {
+                cafeName: 'Shimmer Cafe',
+                taxRate: 10,
+                theme: 'purple',
+                currency: '$',
+                dateFormat: 'MM/DD/YYYY',
+                lastBackup: null
+            };
+            this.saveSettings(defaultSettings);
+        }
+
+        // Initialize menu items if not present
+        if (!localStorage.getItem(this.menuKey)) {
+            const defaultMenu = [
+                { id: 1, name: 'Espresso', category: 'coffee', price: 3.50, image: 'espresso.jpg' },
+                { id: 2, name: 'Cappuccino', category: 'coffee', price: 4.50, image: 'cappuccino.jpg' },
+                { id: 3, name: 'Latte', category: 'coffee', price: 4.75, image: 'latte.jpg' },
+                { id: 4, name: 'Mocha', category: 'coffee', price: 5.00, image: 'mocha.jpg' },
+                { id: 5, name: 'Earl Grey', category: 'tea', price: 3.50, image: 'earl-grey.jpg' },
+                { id: 6, name: 'Green Tea', category: 'tea', price: 3.50, image: 'green-tea.jpg' },
+                { id: 7, name: 'Croissant', category: 'pastries', price: 3.25, image: 'croissant.jpg' },
+                { id: 8, name: 'Chocolate Muffin', category: 'pastries', price: 3.75, image: 'choc-muffin.jpg' },
+                { id: 9, name: 'Sandwich', category: 'snacks', price: 6.50, image: 'sandwich.jpg' },
+                { id: 10, name: 'Avocado Toast', category: 'snacks', price: 7.50, image: 'avocado-toast.jpg' }
+            ];
+            this.saveMenu(defaultMenu);
+        }
+
+        // Initialize orders array if not present
+        if (!localStorage.getItem(this.ordersKey)) {
+            this.saveOrders([]);
+        }
+    }
+
+    // Inventory Management
+    getInventory() {
+        const data = localStorage.getItem(this.inventoryKey);
+        return data ? JSON.parse(data) : [];
+    }
+
+    saveInventory(inventory) {
+        localStorage.setItem(this.inventoryKey, JSON.stringify(inventory));
+    }
+
+    updateInventoryItem(itemId, changes) {
+        const inventory = this.getInventory();
+        const updatedInventory = inventory.map(item => {
+            if (item.id === itemId) {
+                return { ...item, ...changes };
+            }
+            return item;
+        });
+        this.saveInventory(updatedInventory);
+        return updatedInventory;
+    }
+
+    // Menu Management
+    getMenu() {
+        const data = localStorage.getItem(this.menuKey);
+        return data ? JSON.parse(data) : [];
+    }
+
+    saveMenu(menu) {
+        localStorage.setItem(this.menuKey, JSON.stringify(menu));
+    }
+
+    getMenuItemsByCategory(category) {
+        const menu = this.getMenu();
+        return category ? menu.filter(item => item.category === category) : menu;
+    }
+
+    // Order Management
+    getOrders() {
+        const data = localStorage.getItem(this.ordersKey);
+        return data ? JSON.parse(data) : [];
+    }
+
+    saveOrders(orders) {
+        localStorage.setItem(this.ordersKey, JSON.stringify(orders));
+    }
+
+    addOrder(order) {
+        const orders = this.getOrders();
+        // Generate order ID
+        const orderId = Date.now().toString();
+        const newOrder = { 
+            id: orderId, 
+            ...order, 
+            timestamp: new Date().toISOString() 
+        };
+        orders.push(newOrder);
+        this.saveOrders(orders);
+        
+        // Update inventory based on order items
+        this.updateInventoryFromOrder(order.items);
+        
+        return newOrder;
+    }
+
+    updateInventoryFromOrder(orderItems) {
+        const inventory = this.getInventory();
+        
+        // Map of item consumption rates
+        const consumptionRates = {
+            'coffee': 0.05, // kg per coffee drink
+            'milk': 0.2,    // liters per milk-based drink
+            'tea': 1,       // 1 tea bag per tea
+        };
+        
+        // For each order item, reduce relevant inventory
+        orderItems.forEach(orderItem => {
+            const menuItem = this.getMenuItemById(orderItem.id);
             
-            console.log('Database initialized successfully');
+            if (menuItem.category === 'coffee') {
+                this.reduceInventoryStock('Coffee Beans', consumptionRates.coffee * orderItem.quantity);
+                if (menuItem.name !== 'Espresso') { // milk-based coffee
+                    this.reduceInventoryStock('Milk', consumptionRates.milk * orderItem.quantity);
+                }
+            } else if (menuItem.category === 'tea') {
+                this.reduceInventoryStock('Tea Bags', consumptionRates.tea * orderItem.quantity);
+            }
+            // Add other inventory reductions for pastries and snacks
+        });
+    }
+    
+    reduceInventoryStock(itemName, amount) {
+        const inventory = this.getInventory();
+        const itemIndex = inventory.findIndex(item => item.name === itemName);
+        
+        if (itemIndex !== -1) {
+            inventory[itemIndex].stock -= amount;
+            // Round to 2 decimal places for display purposes
+            inventory[itemIndex].stock = Math.round(inventory[itemIndex].stock * 100) / 100;
+            this.saveInventory(inventory);
+        }
+    }
+    
+    getMenuItemById(id) {
+        const menu = this.getMenu();
+        return menu.find(item => item.id === id) || null;
+    }
+
+    // Settings Management
+    getSettings() {
+        const data = localStorage.getItem(this.settingsKey);
+        return data ? JSON.parse(data) : {};
+    }
+
+    saveSettings(settings) {
+        localStorage.setItem(this.settingsKey, JSON.stringify(settings));
+    }
+
+    updateSetting(key, value) {
+        const settings = this.getSettings();
+        settings[key] = value;
+        this.saveSettings(settings);
+        return settings;
+    }
+
+    // Backup and Restore
+    createBackup() {
+        const backup = {
+            inventory: this.getInventory(),
+            menu: this.getMenu(),
+            orders: this.getOrders(),
+            settings: this.getSettings(),
+            timestamp: new Date().toISOString()
+        };
+        
+        // Update last backup time
+        const settings = this.getSettings();
+        settings.lastBackup = backup.timestamp;
+        this.saveSettings(settings);
+        
+        return backup;
+    }
+
+    restoreBackup(backupData) {
+        try {
+            if (backupData.inventory) this.saveInventory(backupData.inventory);
+            if (backupData.menu) this.saveMenu(backupData.menu);
+            if (backupData.orders) this.saveOrders(backupData.orders);
+            if (backupData.settings) this.saveSettings(backupData.settings);
             return true;
         } catch (error) {
-            console.error('Failed to initialize database:', error);
+            console.error('Failed to restore backup:', error);
             return false;
         }
     }
-
-    // Helper method to fetch JSON data
-    async fetchData(url) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error(`Error fetching ${url}:`, error);
-            // Return empty array/object as fallback
-            return url.includes('settings') ? {} : [];
-        }
-    }
-
-    // Get all menu items or filter by category
-    getMenuItems(category = null) {
-        if (!category) {
-            return this.menuItems;
-        }
-        return this.menuItems.filter(item => item.category === category);
-    }
-
-    // Get inventory items
-    getInventory() {
-        return this.inventory;
-    }
-
-    // Get settings
-    getSettings() {
-        return this.settings;
-    }
-
-    // Get orders with optional filtering
-    getOrders(filter = null) {
-        if (!filter) {
-            return this.orders;
-        }
-        
-        // Apply filters based on date, status, etc.
-        if (filter.date) {
-            const filterDate = new Date(filter.date).setHours(0, 0, 0, 0);
-            return this.orders.filter(order => {
-                const orderDate = new Date(order.date).setHours(0, 0, 0, 0);
-                return orderDate === filterDate;
-            });
-        }
-        
-        if (filter.status) {
-            return this.orders.filter(order => order.status === filter.status);
-        }
-        
-        return this.orders;
-    }
-
-    // Create a new order
-    createOrder(orderData) {
-        // Generate new ID
-        const newId = this.orders.length > 0 
-            ? Math.max(...this.orders.map(o => o.id)) + 1 
-            : 1;
-        
-        // Create order with timestamp
-        const order = {
-            id: newId,
-            ...orderData,
-            date: new Date().toISOString(),
-            status: 'completed'
-        };
-        
-        this.orders.push(order);
-        
-        // In a real application, this would save to the server
-        // For this demo, we're just updating the in-memory object
-        console.log('Order created:', order);
-        
-        return order;
-    }
-
-    // Update settings
-    updateSettings(newSettings) {
-        this.settings = { ...this.settings, ...newSettings };
-        
-        // In a real application, this would save to the server
-        console.log('Settings updated:', this.settings);
-        
-        return this.settings;
-    }
-
-    // Update inventory item
-    updateInventoryItem(id, updates) {
-        const index = this.inventory.findIndex(item => item.id === id);
-        if (index === -1) return null;
-        
-        this.inventory[index] = { ...this.inventory[index], ...updates };
-        
-        // In a real application, this would save to the server
-        console.log('Inventory updated:', this.inventory[index]);
-        
-        return this.inventory[index];
-    }
-
-    // Generate backup of all data
-    generateBackup() {
-        return {
-            settings: this.settings,
-            menuItems: this.menuItems,
-            inventory: this.inventory,
-            orders: this.orders,
-            timestamp: new Date().toISOString()
-        };
-    }
-
-    // Restore from backup
-    restoreFromBackup(backupData) {
-        if (!backupData) return false;
-        
-        this.settings = backupData.settings || this.settings;
-        this.menuItems = backupData.menuItems || this.menuItems;
-        this.inventory = backupData.inventory || this.inventory;
-        this.orders = backupData.orders || this.orders;
-        
-        return true;
-    }
 }
 
-// Create and export a singleton instance
-const db = new CafeDatabase();
-window.cafeDb = db; // Make available globally for debugging
+// Initialize the database and make it globally available
+const db = new ShimmerDB();

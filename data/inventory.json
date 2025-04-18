@@ -1,26 +1,222 @@
 [
   {
     "id": 1,
-    "name": "Coffee Beans",
+    "name": "Coffee Beans - Premium Blend",
     "category": "ingredients",
-    "stock": 25,
+    "stock": 25.5,
     "unit": "kg",
-    "reorderLevel": 5
+    "reorderLevel": 5,
+    "supplier": "Mountain Coffee Co.",
+    "cost": 18.50,
+    "lastUpdated": "2023-09-15T10:30:00Z"
   },
   {
     "id": 2,
-    "name": "Milk",
+    "name": "Coffee Beans - Dark Roast",
     "category": "ingredients",
-    "stock": 35,
-    "unit": "liters",
-    "reorderLevel": 10
+    "stock": 18.2,
+    "unit": "kg",
+    "reorderLevel": 5,
+    "supplier": "Mountain Coffee Co.",
+    "cost": 19.75,
+    "lastUpdated": "2023-09-18T14:10:00Z"
   },
   {
     "id": 3,
-    "name": "Tea Bags",
+    "name": "Milk",
     "category": "ingredients",
-    "stock": 150,
-    "unit": "boxes",
-    "reorderLevel": 20
+    "stock": 45.0,
+    "unit": "liters",
+    "reorderLevel": 10,
+    "supplier": "Local Dairy Farm",
+    "cost": 2.10,
+    "lastUpdated": "2023-09-22T08:15:00Z"
+  },
+  {
+    "id": 4,
+    "name": "Almond Milk",
+    "category": "ingredients",
+    "stock": 12.5,
+    "unit": "liters",
+    "reorderLevel": 5,
+    "supplier": "Healthy Alternatives",
+    "cost": 3.45,
+    "lastUpdated": "2023-09-20T11:20:00Z"
+  },
+  {
+    "id": 5,
+    "name": "Oat Milk",
+    "category": "ingredients",
+    "stock": 8.2,
+    "unit": "liters",
+    "reorderLevel": 5,
+    "supplier": "Healthy Alternatives",
+    "cost": 3.75,
+    "lastUpdated": "2023-09-19T15:30:00Z"
+  },
+  {
+    "id": 6,
+    "name": "Sugar",
+    "category": "ingredients",
+    "stock": 30.0,
+    "unit": "kg",
+    "reorderLevel": 5,
+    "supplier": "Sweet Supplies Inc.",
+    "cost": 1.25,
+    "lastUpdated": "2023-09-10T09:45:00Z"
+  },
+  {
+    "id": 7,
+    "name": "Tea Bags - Assorted",
+    "category": "ingredients",
+    "stock": 350,
+    "unit": "pcs",
+    "reorderLevel": 75,
+    "supplier": "Global Tea Importers",
+    "cost": 0.20,
+    "lastUpdated": "2023-09-14T13:10:00Z"
+  },
+  {
+    "id": 8,
+    "name": "Chocolate Syrup",
+    "category": "ingredients",
+    "stock": 5.5,
+    "unit": "liters",
+    "reorderLevel": 2,
+    "supplier": "Sweet Supplies Inc.",
+    "cost": 8.10,
+    "lastUpdated": "2023-09-17T10:00:00Z"
+  },
+  {
+    "id": 9,
+    "name": "Caramel Syrup",
+    "category": "ingredients",
+    "stock": 4.2,
+    "unit": "liters",
+    "reorderLevel": 2,
+    "supplier": "Sweet Supplies Inc.",
+    "cost": 7.80,
+    "lastUpdated": "2023-09-17T10:05:00Z"
+  },
+  {
+    "id": 10,
+    "name": "Vanilla Syrup",
+    "category": "ingredients",
+    "stock": 3.8,
+    "unit": "liters",
+    "reorderLevel": 2,
+    "supplier": "Sweet Supplies Inc.",
+    "cost": 7.50,
+    "lastUpdated": "2023-09-17T10:10:00Z"
+  },
+  {
+    "id": 11,
+    "name": "Paper Cups - Small",
+    "category": "supplies",
+    "stock": 450,
+    "unit": "pcs",
+    "reorderLevel": 100,
+    "supplier": "EcoPack Solutions",
+    "cost": 0.10,
+    "lastUpdated": "2023-09-12T14:30:00Z"
+  },
+  {
+    "id": 12,
+    "name": "Paper Cups - Medium",
+    "category": "supplies",
+    "stock": 380,
+    "unit": "pcs",
+    "reorderLevel": 100,
+    "supplier": "EcoPack Solutions",
+    "cost": 0.14,
+    "lastUpdated": "2023-09-12T14:35:00Z"
+  },
+  {
+    "id": 13,
+    "name": "Paper Cups - Large",
+    "category": "supplies",
+    "stock": 320,
+    "unit": "pcs",
+    "reorderLevel": 75,
+    "supplier": "EcoPack Solutions",
+    "cost": 0.17,
+    "lastUpdated": "2023-09-12T14:40:00Z"
+  },
+  {
+    "id": 14,
+    "name": "Cup Lids",
+    "category": "supplies",
+    "stock": 850,
+    "unit": "pcs",
+    "reorderLevel": 200,
+    "supplier": "EcoPack Solutions",
+    "cost": 0.05,
+    "lastUpdated": "2023-09-12T14:45:00Z"
+  },
+  {
+    "id": 15,
+    "name": "Napkins",
+    "category": "supplies",
+    "stock": 1200,
+    "unit": "pcs",
+    "reorderLevel": 300,
+    "supplier": "EcoPack Solutions",
+    "cost": 0.02,
+    "lastUpdated": "2023-09-12T14:50:00Z"
+  },
+  {
+    "id": 16,
+    "name": "Stirrers",
+    "category": "supplies",
+    "stock": 900,
+    "unit": "pcs",
+    "reorderLevel": 200,
+    "supplier": "EcoPack Solutions",
+    "cost": 0.01,
+    "lastUpdated": "2023-09-12T14:55:00Z"
+  },
+  {
+    "id": 17,
+    "name": "To-Go Bags",
+    "category": "supplies",
+    "stock": 250,
+    "unit": "pcs",
+    "reorderLevel": 50,
+    "supplier": "EcoPack Solutions",
+    "cost": 0.25,
+    "lastUpdated": "2023-09-12T15:00:00Z"
+  },
+  {
+    "id": 18,
+    "name": "Pastry Display Trays",
+    "category": "equipment",
+    "stock": 8,
+    "unit": "pcs",
+    "reorderLevel": 2,
+    "supplier": "Cafe Equipment Co.",
+    "cost": 25.00,
+    "lastUpdated": "2023-08-05T11:20:00Z"
+  },
+  {
+    "id": 19,
+    "name": "Espresso Machine Filter",
+    "category": "equipment",
+    "stock": 5,
+    "unit": "pcs",
+    "reorderLevel": 3,
+    "supplier": "Cafe Equipment Co.",
+    "cost": 12.50,
+    "lastUpdated": "2023-09-01T09:30:00Z"
+  },
+  {
+    "id": 20,
+    "name": "Milk Frother Head",
+    "category": "equipment",
+    "stock": 2,
+    "unit": "pcs",
+    "reorderLevel": 2,
+    "supplier": "Cafe Equipment Co.",
+    "cost": 35.00,
+    "lastUpdated": "2023-08-15T16:10:00Z"
   }
 ]

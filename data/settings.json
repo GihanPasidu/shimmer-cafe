@@ -1,9 +1,38 @@
 {
   "cafeName": "Shimmer Cafe",
   "taxRate": 10,
-  "currency": "$",
   "theme": "purple",
-  "animations": true,
-  "version": "1.0.0",
-  "lastUpdated": "2023-07-15T12:00:00.000Z"
+  "currency": "$",
+  "dateFormat": "MM/DD/YYYY",
+  "backup": {
+    "autoBackup": false,
+    "backupInterval": "weekly", 
+    "lastBackup": null,
+    "backupLocation": "local"
+  },
+  "display": {
+    "menuColumns": "auto",
+    "showImages": true,
+    "animationsEnabled": true,
+    "notificationPosition": "bottom-right",
+    "notificationDuration": 3000
+  },
+  "printing": {
+    "printerName": "Default Printer",
+    "receiptHeader": "Shimmer Cafe - Thank you for your visit!",
+    "receiptFooter": "We hope to see you again soon!",
+    "printLogo": true,
+    "paperSize": "80mm"
+  },
+  "security": {
+    "loginRequired": false,
+    "sessionTimeout": 30,
+    "allowGuestAccess": true
+  },
+  "inventory": {
+    "lowStockWarning": true,
+    "lowStockThreshold": 15,
+    "showReorderAlerts": true,
+    "trackInventoryAutomatically": true
+  }
 }
