@@ -44,23 +44,6 @@ class ShimmerDB {
             this.saveSettings(defaultSettings);
         }
 
-        // Initialize menu items if not present
-        if (!localStorage.getItem(this.menuKey)) {
-            const defaultMenu = [
-                { id: 1, name: 'Espresso', category: 'coffee', price: 3.50, image: 'espresso.jpg' },
-                { id: 2, name: 'Cappuccino', category: 'coffee', price: 4.50, image: 'cappuccino.jpg' },
-                { id: 3, name: 'Latte', category: 'coffee', price: 4.75, image: 'latte.jpg' },
-                { id: 4, name: 'Mocha', category: 'coffee', price: 5.00, image: 'mocha.jpg' },
-                { id: 5, name: 'Earl Grey', category: 'tea', price: 3.50, image: 'earl-grey.jpg' },
-                { id: 6, name: 'Green Tea', category: 'tea', price: 3.50, image: 'green-tea.jpg' },
-                { id: 7, name: 'Croissant', category: 'pastries', price: 3.25, image: 'croissant.jpg' },
-                { id: 8, name: 'Chocolate Muffin', category: 'pastries', price: 3.75, image: 'choc-muffin.jpg' },
-                { id: 9, name: 'Sandwich', category: 'snacks', price: 6.50, image: 'sandwich.jpg' },
-                { id: 10, name: 'Avocado Toast', category: 'snacks', price: 7.50, image: 'avocado-toast.jpg' }
-            ];
-            this.saveMenu(defaultMenu);
-        }
-
         // Initialize orders array if not present
         if (!localStorage.getItem(this.ordersKey)) {
             this.saveOrders([]);
